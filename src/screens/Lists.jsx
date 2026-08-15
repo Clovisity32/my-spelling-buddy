@@ -4,6 +4,7 @@ export default function Lists({ mode, onNavigate }) {
   const [lists, setLists] = useState([]);
   const [newName, setNewName] = useState("");
   const [markSummary, setMarkSummary] = useState({}); // listId -> {marked, total}
+  const [pendingDelete, setPendingDelete] = useState(null); // {list, timerId}
 
   async function refresh() {
     const loaded = await window.__storage.getLists();
@@ -34,6 +35,30 @@ export default function Lists({ mode, onNavigate }) {
     refresh();
   }
 
+  // Delete is undoable, same pattern as deleting a word in the list
+  // editor: hide it immediately, only actually remove it (and its words,
+  // recordings, and marks — see storage/index.js's deleteList) after a few
+  // seconds with no Undo.
+  function requestDeleteList(list) {
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timerId);
+      window.__storage.deleteList(pendingDelete.list.id);
+    }
+    setLists((ls) => ls.filter((l) => l.id !== list.id));
+    const timerId = setTimeout(() => {
+      window.__storage.deleteList(list.id);
+      setPendingDelete(null);
+    }, 4000);
+    setPendingDelete({ list, timerId });
+  }
+
+  function undoDeleteList() {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timerId);
+    setPendingDelete(null);
+    refresh();
+  }
+
   function selectList(list) {
     if (mode === "manage") onNavigate("editor", { listId: list.id });
     else if (mode === "review") onNavigate("review", { listId: list.id });
@@ -50,8 +75,19 @@ export default function Lists({ mode, onNavigate }) {
   }[mode];
 
   return (
-    <div className="min-h-screen p-6">
-      <h2 className="mb-4 text-3xl font-bold text-slate-700">{title}</h2>
+    <div className="flex h-screen flex-col overflow-hidden p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-3xl font-bold text-slate-700">{title}</h2>
+        <button
+          type="button"
+          onClick={() =>
+            onNavigate(mode === "practice" ? "home" : "parentMenu")
+          }
+          className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
+        >
+          Back
+        </button>
+      </div>
       {mode === "manage" && (
         <div className="mb-6 flex gap-2">
           <input
@@ -69,35 +105,57 @@ export default function Lists({ mode, onNavigate }) {
           </button>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+      <div className="grid flex-1 auto-rows-min grid-cols-1 gap-4 overflow-hidden sm:grid-cols-2 md:grid-cols-3">
         {lists.map((list) => (
-          <button
+          <div
             key={list.id}
-            type="button"
-            onClick={() => selectList(list)}
-            className="rounded-2xl bg-white p-6 text-left shadow transition active:scale-95 hover:shadow-md"
+            className="relative rounded-2xl bg-white shadow transition hover:shadow-md"
           >
-            <div className="text-xl font-semibold">{list.name}</div>
-            <div className="text-sm text-slate-500">
-              {list.wordOrder.length} words
-              {mode === "review" && markSummary[list.id] && (
-                <>
-                  {" "}
-                  · {markSummary[list.id].marked} of{" "}
-                  {markSummary[list.id].total} marked
-                </>
-              )}
-            </div>
-          </button>
+            <button
+              type="button"
+              onClick={() => selectList(list)}
+              className="block w-full p-6 text-left active:scale-95"
+            >
+              <div className="pr-16 text-xl font-semibold">{list.name}</div>
+              <div className="text-sm text-slate-500">
+                {list.wordOrder.length} words
+                {mode === "review" && markSummary[list.id] && (
+                  <>
+                    {" "}
+                    · {markSummary[list.id].marked} of{" "}
+                    {markSummary[list.id].total} marked
+                  </>
+                )}
+              </div>
+            </button>
+            {mode === "manage" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  requestDeleteList(list);
+                }}
+                className="absolute right-3 top-3 rounded-lg bg-rose-200 px-3 py-1 text-sm font-semibold text-rose-700 transition active:scale-95 hover:bg-rose-300"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => onNavigate(mode === "practice" ? "home" : "parentMenu")}
-        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
-      >
-        Back
-      </button>
+
+      {pendingDelete && (
+        <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
+          <span>Deleted "{pendingDelete.list.name}"</span>
+          <button
+            type="button"
+            onClick={undoDeleteList}
+            className="font-semibold text-sky-300 underline"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

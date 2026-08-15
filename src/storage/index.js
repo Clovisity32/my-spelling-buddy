@@ -43,6 +43,25 @@ export async function renameList(listId, name) {
   await idb.put("lists", { ...list, name });
 }
 
+// Cascades: a list's words, saved attempts, and marks are only ever
+// referenced through it, so deleting the list without cleaning these up
+// would leave them as permanent orphans in IndexedDB.
+export async function deleteList(listId) {
+  const words = await getWords(listId);
+  for (const w of words) {
+    await idb.del("words", w.id);
+    await idb.del("attempts", `${listId}:${w.id}`);
+    await idb.del("marks", `${listId}:${w.id}`);
+  }
+  await idb.del("lists", listId);
+}
+
+// speechText is what the app's voice should actually say, when that differs
+// from the answer Chloe has to write. Pinyin is the case this exists for:
+// a Mandarin voice reads Chinese characters, not romanization, so a word
+// whose text is "nǐ hǎo" needs speechText "你好" to be spoken correctly.
+// null/empty means "just say text", which is right for Chinese characters
+// and English words alike.
 export async function addWord(
   listId,
   {
@@ -52,6 +71,7 @@ export async function addWord(
     useTts = false,
     ttsLang = "zh",
     ttsVoiceURI = null,
+    speechText = null,
   },
 ) {
   const word = {
@@ -63,6 +83,7 @@ export async function addWord(
     useTts,
     ttsLang,
     ttsVoiceURI,
+    speechText: speechText?.trim() || null,
     createdAt: Date.now(),
   };
   await idb.put("words", word);
