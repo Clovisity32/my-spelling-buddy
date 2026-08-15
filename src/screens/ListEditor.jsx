@@ -208,18 +208,29 @@ export default function ListEditor({ listId, onNavigate }) {
               className="rounded-xl border px-3 py-2 text-sm"
               aria-label="Chinese voice"
             >
-              <option value="">Best available</option>
+              <option value="">Best available (Mandarin)</option>
               {chineseVoices.map((v) => (
                 <option key={v.voiceURI} value={v.voiceURI}>
-                  {v.name} ({v.lang}){v.localService ? "" : " — needs download"}
+                  {v.name} ({v.lang})
+                  {v.isCantonese ? " — Cantonese, not Mandarin" : ""}
+                  {v.localService ? "" : " — needs download"}
                 </option>
               ))}
             </select>
+            {chineseVoices.some((v) => v.isCantonese) && (
+              <p className="max-w-xs text-xs text-slate-500">
+                Voices labelled "Hong Kong"/"HK" are usually Cantonese — a
+                different spoken language from Mandarin, not just an accent.
+                Pinyin is written for Mandarin pronunciation, so a Mandarin
+                voice (Mainland/Taiwan) is the correct match, even though a
+                Cantonese voice can sound more distinctly different.
+              </p>
+            )}
             {chineseVoices.some((v) => !v.localService) && (
               <p className="max-w-xs text-xs text-amber-600">
                 Voices marked "needs download" often silently play in a
-                different voice until downloaded: iPad Settings → Accessibility
-                → Spoken Content → Voices → Chinese.
+                different voice until downloaded: check your device's
+                accessibility / spoken-content voice settings.
               </p>
             )}
           </div>
