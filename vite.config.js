@@ -2,7 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+// GitHub Pages serves a project site from a subpath (/my-spelling-buddy/),
+// not the root — only the GH Pages build (npm run build:gh-pages) opts into
+// that base, so local dev, npm run build, and the whole Playwright suite
+// (which navigate to "/") are unaffected.
+const base = process.env.GH_PAGES === "true" ? "/my-spelling-buddy/" : "/";
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -12,7 +19,8 @@ export default defineConfig({
         name: "My Spelling Buddy",
         short_name: "SpellingBuddy",
         description: "Chloe's spelling practice buddy",
-        start_url: "/",
+        start_url: base,
+        scope: base,
         display: "standalone",
         background_color: "#f0f9ff",
         theme_color: "#38bdf8",
