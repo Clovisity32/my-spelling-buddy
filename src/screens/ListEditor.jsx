@@ -5,9 +5,10 @@ export default function ListEditor({ listId, onNavigate }) {
   const [list, setList] = useState(null);
   const [words, setWords] = useState([]);
   const [text, setText] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [pendingAudio, setPendingAudio] = useState(null);
+  const [recordState, setRecordState] = useState("idle"); // idle | starting | recording
+  const [pendingAudio, setPendingAudio] = useState(null); // {blob,mime} or {useTts:true}
   const [recordError, setRecordError] = useState(null);
+  const [playingWordId, setPlayingWordId] = useState(null);
   const recorderRef = useRef(null);
 
   async function refresh() {
@@ -19,30 +20,51 @@ export default function ListEditor({ listId, onNavigate }) {
     refresh();
   }, [listId]);
 
+  // Give the mic back when the parent leaves this screen, rather than
+  // holding the OS mic indicator on for the rest of the app session — the
+  // stream is cached and reused across recordings while here specifically
+  // to cut the start-up lag between "tap Record" and audio actually
+  // capturing (worst on short pinyin syllables, which lose their opening
+  // sound if speech starts before the mic is truly ready).
+  useEffect(() => {
+    return () => window.__audio.releaseMicrophone();
+  }, []);
+
   async function toggleRecord() {
-    if (!recording) {
+    if (recordState === "idle") {
       setRecordError(null);
+      setRecordState("starting");
       try {
         recorderRef.current = await window.__audio.startRecording();
-        setRecording(true);
+        setRecordState("recording");
+        window.__audio.playRecordStartCue();
       } catch {
+        setRecordState("idle");
         setRecordError(
           "Couldn't access the microphone. Check your browser's microphone permission and try again.",
         );
       }
-    } else {
+    } else if (recordState === "recording") {
       const { blob, mime } = await recorderRef.current.stop();
       setPendingAudio({ blob, mime });
-      setRecording(false);
+      setRecordState("idle");
     }
+  }
+
+  function useTtsForWord() {
+    if (!text.trim()) return;
+    setRecordError(null);
+    setPendingAudio({ useTts: true });
+    window.__audio.speakWord(text.trim());
   }
 
   async function addWord() {
     if (!text.trim() || !pendingAudio) return;
     await window.__storage.addWord(listId, {
       text: text.trim(),
-      audioBlob: pendingAudio.blob,
-      audioMime: pendingAudio.mime,
+      audioBlob: pendingAudio.useTts ? null : pendingAudio.blob,
+      audioMime: pendingAudio.useTts ? null : pendingAudio.mime,
+      useTts: !!pendingAudio.useTts,
     });
     setText("");
     setPendingAudio(null);
@@ -65,15 +87,37 @@ export default function ListEditor({ listId, onNavigate }) {
 
   function playPending() {
     if (!pendingAudio) return;
-    window.__audio.playRecordedAudio(pendingAudio.blob);
+    if (pendingAudio.useTts) window.__audio.speakWord(text.trim());
+    else window.__audio.playRecordedAudio(pendingAudio.blob);
   }
 
   function playWord(word) {
-    if (!word.audioBlob) return;
-    window.__audio.playRecordedAudio(word.audioBlob);
+    setPlayingWordId(word.id);
+    if (word.useTts) {
+      window.__audio.speakWord(word.text);
+      setTimeout(
+        () => setPlayingWordId((id) => (id === word.id ? null : id)),
+        1200,
+      );
+    } else if (word.audioBlob) {
+      window.__audio.playRecordedAudio(word.audioBlob);
+      setTimeout(
+        () => setPlayingWordId((id) => (id === word.id ? null : id)),
+        800,
+      );
+    } else {
+      setPlayingWordId(null);
+    }
   }
 
   if (!list) return null;
+
+  const recordLabel =
+    recordState === "recording"
+      ? "Stop recording"
+      : recordState === "starting"
+        ? "Starting…"
+        : "Record";
 
   return (
     <div className="min-h-screen p-6">
@@ -84,39 +128,49 @@ export default function ListEditor({ listId, onNavigate }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Word, phrase, character, or pinyin (ni3 hao3)"
-          className="rounded-xl border px-4 py-2"
+          className="min-w-[16rem] flex-1 rounded-xl border px-4 py-2"
         />
         <button
           type="button"
           onClick={() => setText(toneNumbersToMarks(text))}
           disabled={!text.trim()}
           title="Type pinyin with tone numbers (ni3 hao3), then tap this to convert to tone marks (nǐ hǎo)"
-          className="rounded-xl bg-slate-200 px-4 py-2 font-semibold disabled:opacity-40"
+          className="rounded-xl bg-slate-200 px-4 py-2 font-semibold transition active:scale-95 disabled:opacity-40"
         >
           1→ā tone marks
         </button>
         <button
           type="button"
           onClick={toggleRecord}
-          className={`rounded-xl px-4 py-2 font-semibold text-white ${recording ? "bg-rose-500" : "bg-sky-500"}`}
+          disabled={recordState === "starting"}
+          className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-60 ${recordState === "recording" ? "bg-rose-500" : "bg-sky-500"}`}
         >
-          {recording ? "Stop recording" : "Record"}
+          {recordLabel}
+        </button>
+        <button
+          type="button"
+          onClick={useTtsForWord}
+          disabled={!text.trim()}
+          title="Have the app read the word aloud instead of recording your own voice"
+          className="rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
+        >
+          🔊 Read it for me
         </button>
         {recordError && <p className="text-sm text-rose-600">{recordError}</p>}
         {pendingAudio && (
           <button
             type="button"
             onClick={playPending}
-            className="rounded-xl bg-slate-200 px-4 py-2"
+            className="rounded-xl bg-slate-200 px-4 py-2 transition active:scale-95"
           >
-            Play preview
+            {pendingAudio.useTts ? "Preview" : "Play preview"}
           </button>
         )}
         <button
           type="button"
           onClick={addWord}
           disabled={!text.trim() || !pendingAudio}
-          className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white disabled:opacity-40"
+          className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
         >
           Add word
         </button>
@@ -128,33 +182,40 @@ export default function ListEditor({ listId, onNavigate }) {
             key={word.id}
             className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow"
           >
-            <span className="text-lg">{word.text}</span>
+            <span className="text-lg">
+              {word.text}
+              {word.useTts && (
+                <span className="ml-2 text-xs font-semibold text-violet-500">
+                  🔊 spoken
+                </span>
+              )}
+            </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => playWord(word)}
-                className="rounded-lg bg-slate-200 px-3 py-1"
+                className={`rounded-lg px-3 py-1 transition active:scale-95 ${playingWordId === word.id ? "bg-sky-300" : "bg-slate-200"}`}
               >
-                Play
+                {playingWordId === word.id ? "🔊 Playing…" : "Play"}
               </button>
               <button
                 type="button"
                 onClick={() => move(i, -1)}
-                className="rounded-lg bg-slate-200 px-3 py-1"
+                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95"
               >
                 Up
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
-                className="rounded-lg bg-slate-200 px-3 py-1"
+                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95"
               >
                 Down
               </button>
               <button
                 type="button"
                 onClick={() => removeWord(word.id)}
-                className="rounded-lg bg-rose-200 px-3 py-1"
+                className="rounded-lg bg-rose-200 px-3 py-1 transition active:scale-95"
               >
                 Delete
               </button>
@@ -166,7 +227,7 @@ export default function ListEditor({ listId, onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "manage" })}
-        className="mt-8 text-slate-500 underline"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
       >
         Back to lists
       </button>

@@ -5,21 +5,21 @@ export default function ParentMenu({ onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "manage" })}
-        className="w-72 rounded-2xl bg-sky-400 px-8 py-6 text-xl font-semibold text-white shadow"
+        className="w-72 rounded-2xl bg-sky-400 px-8 py-6 text-xl font-semibold text-white shadow transition active:scale-95"
       >
         Manage Spelling Lists
       </button>
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "review" })}
-        className="w-72 rounded-2xl bg-amber-400 px-8 py-6 text-xl font-semibold text-white shadow"
+        className="w-72 rounded-2xl bg-amber-400 px-8 py-6 text-xl font-semibold text-white shadow transition active:scale-95"
       >
         Review Chloe's Work
       </button>
       <button
         type="button"
         onClick={() => onNavigate("home")}
-        className="text-slate-500 underline"
+        className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
       >
         Back
       </button>

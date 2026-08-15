@@ -29,13 +29,17 @@ export async function renameList(listId, name) {
   await idb.put("lists", { ...list, name });
 }
 
-export async function addWord(listId, { text, audioBlob, audioMime }) {
+export async function addWord(
+  listId,
+  { text, audioBlob, audioMime, useTts = false },
+) {
   const word = {
     id: uid(),
     listId,
     text,
     audioBlob,
     audioMime,
+    useTts,
     createdAt: Date.now(),
   };
   await idb.put("words", word);

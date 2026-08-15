@@ -46,3 +46,34 @@ export async function playHappyTick() {
     type: "triangle",
   });
 }
+
+// A very short, quiet tap — general button-press feedback, deliberately
+// subtle so it doesn't compete with the more distinct celebratory sounds
+// (chime/fanfare/happy tick) that follow specific actions.
+export async function playClickSound() {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return;
+  tone(ctx, {
+    freq: 520,
+    start: ctx.currentTime,
+    duration: 0.05,
+    type: "sine",
+    gain: 0.12,
+  });
+}
+
+// Plays right when a recording actually starts, so the parent has a clear
+// "go" cue rather than guessing whether the mic is ready yet — recordings
+// that start speaking before the cue lose their first fraction of a
+// second, which is especially costly for a single short pinyin syllable.
+export async function playRecordStartCue() {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return;
+  tone(ctx, {
+    freq: 1000,
+    start: ctx.currentTime,
+    duration: 0.08,
+    type: "sine",
+    gain: 0.18,
+  });
+}

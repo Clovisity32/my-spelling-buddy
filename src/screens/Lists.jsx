@@ -41,7 +41,7 @@ export default function Lists({ mode, onNavigate }) {
           <button
             type="button"
             onClick={createList}
-            className="rounded-xl bg-sky-400 px-4 py-2 font-semibold text-white"
+            className="rounded-xl bg-sky-400 px-4 py-2 font-semibold text-white transition active:scale-95"
           >
             Add list
           </button>
@@ -58,7 +58,7 @@ export default function Lists({ mode, onNavigate }) {
                 onNavigate("review", { listId: list.id });
               else setSelected(list.id);
             }}
-            className={`rounded-2xl p-6 text-left shadow ${selected === list.id ? "bg-emerald-100" : "bg-white"}`}
+            className={`rounded-2xl p-6 text-left shadow transition active:scale-95 ${selected === list.id ? "bg-emerald-100" : "bg-white"}`}
           >
             <div className="text-xl font-semibold">{list.name}</div>
             <div className="text-sm text-slate-500">
@@ -80,7 +80,7 @@ export default function Lists({ mode, onNavigate }) {
           <button
             type="button"
             onClick={() => onNavigate("test", { listId: selected, shuffle })}
-            className="rounded-2xl bg-emerald-400 px-8 py-4 text-xl font-bold text-white"
+            className="rounded-2xl bg-emerald-400 px-8 py-4 text-xl font-bold text-white transition active:scale-95"
           >
             Start!
           </button>
@@ -89,7 +89,7 @@ export default function Lists({ mode, onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate(mode === "practice" ? "home" : "parentMenu")}
-        className="mt-8 text-slate-500 underline"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
       >
         Back
       </button>

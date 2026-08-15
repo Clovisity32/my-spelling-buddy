@@ -48,8 +48,8 @@ export default function Test({ listId, shuffle, onNavigate }) {
   const word = words[index];
 
   function playWord() {
-    if (!word.audioBlob) return;
-    window.__audio.playRecordedAudio(word.audioBlob);
+    if (word.useTts) window.__audio.speakWord(word.text);
+    else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
   }
 
   async function save() {
@@ -77,7 +77,7 @@ export default function Test({ listId, shuffle, onNavigate }) {
         <button
           type="button"
           onClick={() => onNavigate("home")}
-          className="text-sm text-slate-400 underline"
+          className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition active:scale-95"
         >
           Home
         </button>

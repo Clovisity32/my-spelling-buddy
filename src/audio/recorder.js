@@ -25,11 +25,39 @@ function pickMimeType() {
   return "";
 }
 
+// getUserMedia() has real latency (permission check, hardware/driver
+// init) — re-acquiring the mic fresh for every single word recording was
+// the cause of a noticeable start-up lag, worst on short pinyin syllables
+// where the first fraction of a second (spent still acquiring the stream)
+// was silently lost. Caching the stream across recordings in one editing
+// session pays that cost once instead of per-word. releaseMicrophone()
+// lets a screen give the mic back explicitly (e.g. on unmount) rather
+// than leaving the OS mic indicator on indefinitely.
+let cachedStream = null;
+
+async function getStream() {
+  if (
+    cachedStream &&
+    cachedStream.getTracks().some((t) => t.readyState === "live")
+  ) {
+    return cachedStream;
+  }
+  cachedStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  return cachedStream;
+}
+
+export function releaseMicrophone() {
+  if (cachedStream) {
+    cachedStream.getTracks().forEach((t) => t.stop());
+    cachedStream = null;
+  }
+}
+
 export async function startRecording() {
   if (!isRecordingSupported()) {
     throw new Error("Recording is not supported on this device.");
   }
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await getStream();
   const mimeType = pickMimeType();
   const recorder = new window.MediaRecorder(
     stream,
@@ -39,10 +67,6 @@ export async function startRecording() {
   recorder.addEventListener("dataavailable", (e) => {
     if (e.data.size > 0) chunks.push(e.data);
   });
-
-  function stopTracks() {
-    stream.getTracks().forEach((t) => t.stop());
-  }
 
   recorder.start();
 
@@ -55,7 +79,6 @@ export async function startRecording() {
             const blob = new Blob(chunks, {
               type: recorder.mimeType || mimeType || "audio/webm",
             });
-            stopTracks();
             resolve({ blob, mime: blob.type });
           },
           { once: true },
@@ -65,7 +88,6 @@ export async function startRecording() {
     },
     cancel() {
       if (recorder.state !== "inactive") recorder.stop();
-      stopTracks();
     },
   };
 }

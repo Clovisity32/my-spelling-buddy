@@ -29,8 +29,8 @@ export default function Review({ listId, onNavigate }) {
   }
 
   function playAudio(word) {
-    if (!word.audioBlob) return;
-    window.__audio.playRecordedAudio(word.audioBlob);
+    if (word.useTts) window.__audio.speakWord(word.text);
+    else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
   }
 
   if (!list) return null;
@@ -51,7 +51,7 @@ export default function Review({ listId, onNavigate }) {
               <button
                 type="button"
                 onClick={() => playAudio(word)}
-                className="rounded-lg bg-slate-200 px-4 py-2"
+                className="rounded-lg bg-slate-200 px-4 py-2 transition active:scale-95"
               >
                 Play
               </button>
@@ -60,7 +60,7 @@ export default function Review({ listId, onNavigate }) {
             <button
               type="button"
               onClick={() => tick(word.id)}
-              className="mt-3 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white"
+              className="mt-3 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95"
             >
               Mark correct
             </button>
@@ -68,7 +68,7 @@ export default function Review({ listId, onNavigate }) {
               <div
                 role="img"
                 aria-label="Marked correct"
-                className="pointer-events-none absolute right-4 top-4 sm:right-6 sm:top-6"
+                className="pointer-events-none absolute -right-4 -top-4 sm:-right-6 sm:-top-6"
               >
                 <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <div className="tick-pop relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-5xl text-white shadow-xl sm:h-28 sm:w-28 sm:text-7xl">
@@ -82,7 +82,7 @@ export default function Review({ listId, onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "review" })}
-        className="mt-8 text-slate-500 underline"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
       >
         Back to lists
       </button>
