@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import Whiteboard from "./canvas/Whiteboard.jsx";
+import StrokeReplay from "./canvas/StrokeReplay.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -12,9 +13,6 @@ export default function App() {
     setParams(nextParams);
   }
 
-  // Test-only harness routes, selected via ?harness=<name>. Lets Playwright
-  // mount a single component full-screen instead of driving the whole app
-  // to reach it — same rationale as the window.__storage/__audio hooks.
   const harness = new URLSearchParams(window.location.search).get("harness");
   if (harness === "whiteboard") {
     window.__wb = wbRef;
@@ -25,6 +23,13 @@ export default function App() {
           fingerDraw={fingerDraw}
           onFingerDrawChange={setFingerDraw}
         />
+      </div>
+    );
+  }
+  if (harness === "replay") {
+    return (
+      <div style={{ height: "100vh" }}>
+        <StrokeReplay strokes={window.__REPLAY_STROKES__ || []} />
       </div>
     );
   }
