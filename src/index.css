@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Every screen fits within one viewport with no page-level scroll or
+   rubber-band bounce by default — each screen's root uses h-screen +
+   overflow-hidden to match. The Review (marking) screen is the one
+   deliberate exception: it opts back into scrolling on its own inner
+   container, not this one, so this global rule never needs to bend. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Belt-and-braces alongside the viewport meta tag's user-scalable=no:
+     stops double-tap-to-zoom, which that meta tag alone doesn't cover on
+     every browser. */
+  touch-action: manipulation;
+}
+#root {
+  height: 100%;
+}
+
 @keyframes tick-pop {
   0% {
     transform: scale(0) rotate(-15deg);

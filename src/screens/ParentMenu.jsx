@@ -1,6 +1,6 @@
 export default function ParentMenu({ onNavigate }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
+    <div className="flex h-screen flex-col items-center justify-center gap-6 overflow-hidden p-6">
       <h2 className="text-3xl font-bold text-slate-700">Parents</h2>
       <button
         type="button"

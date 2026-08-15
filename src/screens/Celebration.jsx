@@ -12,7 +12,7 @@ export default function Celebration({ listId, onNavigate }) {
   }, [listId]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
+    <div className="flex h-screen flex-col items-center justify-center gap-6 overflow-hidden p-6 text-center">
       <p className="text-7xl">{"⭐️🎉⭐️"}</p>
       <h2 className="text-4xl font-bold text-emerald-600">
         You finished the whole list, Chloe!

@@ -14,7 +14,7 @@ export default function Home({ onNavigate }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
+    <div className="flex h-screen flex-col items-center justify-center gap-8 overflow-hidden p-6">
       <h1 className="text-5xl font-bold text-slate-700">My Spelling Buddy</h1>
 
       {latestList && (
