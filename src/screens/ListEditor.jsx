@@ -321,21 +321,12 @@ export default function ListEditor({ listId, onNavigate }) {
                       {chineseVoices.map((v) => (
                         <option key={v.voiceURI} value={v.voiceURI}>
                           {v.name} ({v.lang})
-                          {v.isCantonese ? " — Cantonese, not Mandarin" : ""}
                           {v.localService ? "" : " — needs download"}
                         </option>
                       ))}
                     </select>
                   )}
                 </div>
-                {chineseVoices.some((v) => v.isCantonese) && (
-                  <p className="max-w-xs text-xs text-slate-500">
-                    "Hong Kong"/"HK" voices are usually Cantonese, a different
-                    spoken language from Mandarin — pinyin is written for
-                    Mandarin, so a Mainland/Taiwan voice is the correct match
-                    even though Cantonese sounds more distinct.
-                  </p>
-                )}
               </div>
             </div>
           )}

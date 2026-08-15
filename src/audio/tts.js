@@ -10,39 +10,51 @@
 //
 // Which actual voices exist is entirely up to the device/OS. Mandarin is
 // tagged "zh" (or, on some engines, the ISO 639-3 code "cmn") — Cantonese
-// is a DIFFERENT spoken language, tagged "zh-HK"/"yue", not just a regional
-// accent of Mandarin. Pinyin romanization is specifically for Mandarin
-// pronunciation, so a Cantonese voice reading it is wrong regardless of how
-// "authentically Chinese" it sounds — this preference list ranks Mandarin
-// variants first and Cantonese (zh-HK/yue) last, used only if no Mandarin
-// voice exists at all. iOS/Android do not currently ship a dedicated
-// Singapore-Mandarin voice as standard; zh-SG/cmn-SG are tried first in
-// case a device has one anyway, then mainland/Taiwan Mandarin, then
-// Cantonese as a last resort. getChineseVoices() lets a screen offer a
-// picker so a parent can audition whichever voices their own device
-// actually has and choose the one that sounds best — it flags Cantonese
-// voices distinctly so "sounds completely different" isn't mistaken for
-// "sounds better."
-const MANDARIN_LANG_PREFERENCE = [
-  "zh-sg",
-  "cmn-sg",
-  "zh-cn",
-  "cmn-cn",
-  "cmn-hans-cn",
-  "zh-tw",
-  "cmn-tw",
-  "cmn-hant-tw",
-];
-const CANTONESE_LANG_PREFERENCE = ["zh-hk", "yue-hk", "yue"];
+// is a DIFFERENT spoken language, not just a regional accent of Mandarin.
+// Pinyin romanization is specifically for Mandarin pronunciation, so a
+// Cantonese voice reading it is wrong regardless of how "authentically
+// Chinese" it sounds. Cantonese/Hong Kong voices are excluded entirely —
+// never offered in the picker, never auto-selected, not even as a last
+// resort if no Mandarin voice exists (falls back to a plain "zh-CN" lang
+// request and lets the OS pick its own default instead).
+//
+// A first version of this file only rejected a lang tag if it started
+// with the literal string "zh-hk" — but real engines commonly report Hong
+// Kong Cantonese with a script subtag included, e.g. "zh-Hant-HK" (Android
+// Chrome's system TTS does this), which does NOT start with "zh-hk" and
+// slipped straight through as "Mandarin". isCantoneseVoice() below checks
+// for an "HK" region or "yue" language code anywhere in the tag (plus the
+// voice's own name, since some engines only say "Cantonese"/"Hong Kong"
+// there and not in the BCP-47 tag at all) instead of anchoring to one
+// exact tag shape — verified against a simulated zh-Hant-HK voice.
+const REGION_PREFERENCE = ["sg", "cn", "tw"]; // Singapore > Mainland > Taiwan
 
-function isMandarinLang(lang) {
-  const l = lang?.toLowerCase() || "";
-  return (l.startsWith("zh") && !l.startsWith("zh-hk")) || l.startsWith("cmn");
+function isCantoneseVoice(voice) {
+  const lang = (voice.lang || "").toLowerCase();
+  const name = (voice.name || "").toLowerCase();
+  return (
+    lang.includes("hk") ||
+    lang.includes("yue") ||
+    name.includes("cantonese") ||
+    name.includes("hong kong")
+  );
 }
 
-function isCantoneseLang(lang) {
-  const l = lang?.toLowerCase() || "";
-  return l.startsWith("zh-hk") || l.startsWith("yue");
+function isMandarinVoice(voice) {
+  const lang = (voice.lang || "").toLowerCase();
+  if (!lang.startsWith("zh") && !lang.startsWith("cmn")) return false;
+  return !isCantoneseVoice(voice);
+}
+
+// Which BCP-47 region subtag (sg/cn/tw) a Mandarin voice's lang carries,
+// tolerant of a script subtag in between (zh-CN, zh-Hans-CN, cmn-CN all
+// match "cn"). Returns null if none of the three appear.
+function regionOf(lang) {
+  const l = (lang || "").toLowerCase();
+  for (const r of REGION_PREFERENCE) {
+    if (l.includes(`-${r}`) || l.includes(`_${r}`)) return r;
+  }
+  return null;
 }
 
 let cachedVoices = [];
@@ -64,39 +76,35 @@ if (isSpeechSynthesisSupported()) {
   window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
 }
 
-// Cantonese voices are included (a parent may deliberately want one) but
-// each is tagged so the picker can label it distinctly from Mandarin.
+// Mandarin voices only — Cantonese/Hong Kong is never offered here, so it
+// can never be picked from this list by a parent expecting "Chinese".
 export function getChineseVoices() {
   // Built explicitly rather than via {...v}: SpeechSynthesisVoice's fields
   // are accessor properties on the prototype, not own enumerable
   // properties on each instance, so a spread silently drops them all.
   return loadVoices()
-    .filter((v) => isMandarinLang(v.lang) || isCantoneseLang(v.lang))
+    .filter(isMandarinVoice)
     .map((v) => ({
       voiceURI: v.voiceURI,
       name: v.name,
       lang: v.lang,
       localService: v.localService,
-      isCantonese: isCantoneseLang(v.lang),
     }));
 }
 
 function pickVoice(lang) {
   const voices = loadVoices();
   if (lang === "zh") {
-    for (const pref of MANDARIN_LANG_PREFERENCE) {
-      const match = voices.find((v) => v.lang?.toLowerCase() === pref);
+    const mandarinVoices = voices.filter(isMandarinVoice);
+    for (const region of REGION_PREFERENCE) {
+      const match = mandarinVoices.find((v) => regionOf(v.lang) === region);
       if (match) return match;
     }
-    const anyMandarin = voices.find((v) => isMandarinLang(v.lang));
-    if (anyMandarin) return anyMandarin;
-    // No Mandarin voice at all on this device — Cantonese is at least
-    // Chinese, so it's a better fallback than an English voice.
-    for (const pref of CANTONESE_LANG_PREFERENCE) {
-      const match = voices.find((v) => v.lang?.toLowerCase() === pref);
-      if (match) return match;
-    }
-    return null;
+    // No exact-region match — any other Mandarin voice beats none at all.
+    // Cantonese is deliberately not tried here: better to fall through to
+    // a plain "zh-CN" lang request (letting the OS pick its own default)
+    // than to ever hand back a different spoken language.
+    return mandarinVoices[0] || null;
   }
   return voices.find((v) => v.lang?.toLowerCase().startsWith("en")) || null;
 }
@@ -114,7 +122,13 @@ export function speakWord(text, lang = "zh", voiceURI = null) {
     ? voices.find((v) => v.voiceURI === voiceURI)
     : pickVoice(lang);
   if (voice) {
-    utterance.voice = voice;
+    try {
+      utterance.voice = voice;
+    } catch {
+      // A voice reference gone stale between listing and speaking — fall
+      // through to the plain lang-only request below rather than throwing
+      // out of an unawaited, uncaught call site.
+    }
     utterance.lang = voice.lang;
   } else {
     utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
