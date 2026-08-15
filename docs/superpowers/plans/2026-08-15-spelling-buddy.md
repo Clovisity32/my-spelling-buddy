@@ -944,11 +944,14 @@ export function paintStroke(ctx, stroke, scale) {
   const erasing = stroke.tool === "eraser";
   ctx.save();
   if (erasing) {
-    // Punches a hole back to the white fill underneath rather than
-    // painting an opaque white stroke over it.
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.strokeStyle = "#000000";
-    ctx.fillStyle = "#000000";
+    // Paints opaque white rather than using destination-out: redrawAll
+    // always fills this flat canvas white and replays every stroke on top
+    // of it (no separate ink layer over a background image, which is what
+    // destination-out protects), so punching an alpha hole here would cut
+    // through the white fill itself and leave a transparent pixel instead
+    // of a white one.
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#ffffff";
   } else {
     ctx.strokeStyle = stroke.color;
     ctx.fillStyle = stroke.color;
@@ -1301,14 +1304,16 @@ const Whiteboard = forwardRef(function Whiteboard(
 
     // Fast path: append just the new segment onto the already-painted
     // canvas instead of replaying every stroke on every pointer move.
+    // Eraser paints opaque white rather than using destination-out: this
+    // board is a single flat canvas with no separate ink layer over a
+    // background image (that's what destination-out is for), so punching
+    // an alpha hole would cut through the white fill itself and leave a
+    // transparent pixel, not a white one — inconsistent with strokes.js's
+    // redrawAll, which paints eraser strokes as opaque white for the same
+    // reason.
     const ctx = canvasRef.current.getContext("2d");
     ctx.save();
-    if (stroke.tool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.strokeStyle = "#000000";
-    } else {
-      ctx.strokeStyle = stroke.color;
-    }
+    ctx.strokeStyle = stroke.tool === "eraser" ? "#ffffff" : stroke.color;
     ctx.lineWidth = stroke.width * scaleRef.current;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
