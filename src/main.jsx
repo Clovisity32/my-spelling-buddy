@@ -6,12 +6,12 @@ import * as storage from "./storage/index.js";
 import * as audioContext from "./audio/context.js";
 import * as sounds from "./audio/sounds.js";
 import * as recorder from "./audio/recorder.js";
+import * as strokes from "./canvas/strokes.js";
 
-// Test-only hooks — see Task 2's storage.spec.js comment for the rationale;
-// same reasoning applies to audio.
 if (typeof window !== "undefined") {
   window.__storage = storage;
   window.__audio = { ...audioContext, ...sounds, ...recorder };
+  window.__canvas = strokes;
   window.addEventListener("pointerdown", () => audioContext.primeAudio(), {
     once: true,
   });
