@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import Whiteboard from "./canvas/Whiteboard.jsx";
 import StrokeReplay from "./canvas/StrokeReplay.jsx";
+import Home from "./screens/Home.jsx";
+import ParentMenu from "./screens/ParentMenu.jsx";
+import Lists from "./screens/Lists.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -36,11 +39,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-sky-50 text-slate-800">
-      {screen === "home" && (
-        <div className="flex min-h-screen items-center justify-center">
-          <h1 className="text-4xl font-bold">My Spelling Buddy</h1>
-        </div>
-      )}
+      {screen === "home" && <Home onNavigate={navigate} />}
+      {screen === "parentMenu" && <ParentMenu onNavigate={navigate} />}
+      {screen === "lists" && <Lists mode={params.mode} onNavigate={navigate} />}
     </div>
   );
 }
