@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import StrokeReplay from "../canvas/StrokeReplay.jsx";
+import Screen from "../components/Screen.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 export default function Review({ listId, focusWordId, onNavigate }) {
   const [list, setList] = useState(null);
@@ -80,32 +82,29 @@ export default function Review({ listId, focusWordId, onNavigate }) {
   const markedCount = rows.filter((r) => r.ticked).length;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-6">
-      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-3xl font-bold text-slate-700">
-          Reviewing: {list.name}
-        </h2>
-        <div className="flex flex-wrap items-center gap-3">
-          {rows.length > 0 && (
-            <p className="text-lg font-semibold text-slate-500">
+    <Screen max="max-w-3xl">
+      <PageHeader
+        title={`Reviewing: ${list.name}`}
+        onBack={() => onNavigate("lists", { mode: "review" })}
+        backLabel="Back to lists"
+        actions={
+          rows.length > 0 ? (
+            <p className="text-sm font-semibold text-slate-500">
               {markedCount} of {rows.length} marked
             </p>
-          )}
-          <button
-            type="button"
-            onClick={() => onNavigate("lists", { mode: "review" })}
-            className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
-          >
-            Back to lists
-          </button>
-        </div>
-      </div>
+          ) : null
+        }
+      />
       {/* The one screen in the app that scrolls — every other screen fits
           the viewport and clips instead (see index.css). A completed list
           can easily be taller than one screen, and Chloe never needs this
           screen at all (it's parent-only), so trading the app's usual
-          no-scroll feel for reachability here is the right call. */}
-      <div className="flex max-w-2xl flex-1 flex-col gap-6 overflow-y-auto">
+          no-scroll feel for reachability here is the right call.
+
+          The column is centred: it used to be max-w-2xl with no mx-auto, so
+          the cards hugged the left edge while the header spanned the full
+          width above them. */}
+      <div className="mx-auto flex w-full flex-1 flex-col gap-5 overflow-y-auto pb-1">
         {rows.map(({ word, strokes, ticked }) => {
           const attempted = strokes.length > 0;
           return (
@@ -114,11 +113,11 @@ export default function Review({ listId, focusWordId, onNavigate }) {
               ref={(el) => {
                 cardRefs.current[word.id] = el;
               }}
-              className={`relative rounded-2xl bg-white p-4 shadow transition-shadow ${highlightId === word.id ? "ring-4 ring-sky-300" : ""}`}
+              className={`card relative transition-shadow ${highlightId === word.id ? "ring-4 ring-sky-300" : ""}`}
             >
               <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-2xl font-semibold">
-                  {word.text}
+                <span className="flex min-w-0 items-center gap-2 text-2xl font-semibold text-slate-800">
+                  <span className="truncate">{word.text}</span>
                   {ticked && (
                     <span
                       role="img"
@@ -132,7 +131,7 @@ export default function Review({ listId, focusWordId, onNavigate }) {
                 <button
                   type="button"
                   onClick={() => playAudio(word)}
-                  className="rounded-lg bg-slate-200 px-5 py-2.5 transition hover:bg-slate-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
+                  className="btn btn-secondary btn-sm shrink-0"
                 >
                   Play
                 </button>
@@ -152,11 +151,7 @@ export default function Review({ listId, focusWordId, onNavigate }) {
                   onClick={() => toggleTick(word.id, ticked)}
                   disabled={!attempted}
                   aria-pressed={ticked}
-                  className={`rounded-xl px-5 py-2.5 font-semibold text-white transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:opacity-40 ${
-                    ticked
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-emerald-500 hover:bg-emerald-600"
-                  }`}
+                  className={`btn btn-go btn-sm ${ticked ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
                 >
                   {ticked ? "✓ Correct" : "Mark correct"}
                 </button>
@@ -165,7 +160,7 @@ export default function Review({ listId, focusWordId, onNavigate }) {
                   onClick={() => redo(word.id)}
                   disabled={!attempted}
                   title="Not correct — send back to hear it and write it again"
-                  className="rounded-xl border-2 border-amber-400 bg-white px-5 py-2.5 font-semibold text-amber-600 transition active:scale-95 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 disabled:opacity-40"
+                  className="btn btn-redo btn-sm"
                 >
                   Redo
                 </button>
@@ -174,6 +169,6 @@ export default function Review({ listId, focusWordId, onNavigate }) {
           );
         })}
       </div>
-    </div>
+    </Screen>
   );
 }

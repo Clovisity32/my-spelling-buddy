@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import Screen from "../components/Screen.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 export default function Lists({ mode, onNavigate }) {
   const [lists, setLists] = useState([]);
@@ -75,49 +77,46 @@ export default function Lists({ mode, onNavigate }) {
   }[mode];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-3xl font-bold text-slate-700">{title}</h2>
-        <button
-          type="button"
-          onClick={() =>
-            onNavigate(mode === "practice" ? "home" : "parentMenu")
-          }
-          className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
-        >
-          Back
-        </button>
-      </div>
+    <Screen>
+      <PageHeader
+        title={title}
+        onBack={() => onNavigate(mode === "practice" ? "home" : "parentMenu")}
+      />
       {mode === "manage" && (
-        <div className="mb-6 flex gap-2">
+        <div className="mb-5 flex shrink-0 flex-wrap gap-2">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New list name"
-            className="rounded-xl border px-4 py-2"
+            className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-2 sm:max-w-xs"
           />
           <button
             type="button"
             onClick={createList}
-            className="rounded-xl bg-sky-400 px-4 py-2 font-semibold text-white transition active:scale-95"
+            className="btn btn-primary btn-sm"
           >
             Add list
           </button>
         </div>
       )}
-      <div className="grid flex-1 auto-rows-min grid-cols-1 gap-4 overflow-hidden sm:grid-cols-2 md:grid-cols-3">
+      {/* The list grid is the one part of this screen allowed to scroll if a
+          parent accumulates more lists than fit — the header and the add-list
+          row stay put above it. */}
+      <div className="grid flex-1 auto-rows-min grid-cols-1 gap-4 overflow-y-auto pb-1 sm:grid-cols-2 lg:grid-cols-3">
         {lists.map((list) => (
           <div
             key={list.id}
-            className="relative rounded-2xl bg-white shadow transition hover:shadow-md"
+            className="card relative p-0 transition hover:shadow-md"
           >
             <button
               type="button"
               onClick={() => selectList(list)}
-              className="block w-full p-6 text-left active:scale-95"
+              className="block w-full rounded-2xl p-5 text-left transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
             >
-              <div className="pr-16 text-xl font-semibold">{list.name}</div>
-              <div className="text-sm text-slate-500">
+              <div className="truncate pr-20 text-lg font-semibold text-slate-800">
+                {list.name}
+              </div>
+              <div className="mt-0.5 text-sm text-slate-500">
                 {list.wordOrder.length} words
                 {mode === "review" && markSummary[list.id] && (
                   <>
@@ -135,7 +134,7 @@ export default function Lists({ mode, onNavigate }) {
                   e.stopPropagation();
                   requestDeleteList(list);
                 }}
-                className="absolute right-3 top-3 rounded-lg bg-rose-200 px-3 py-1 text-sm font-semibold text-rose-700 transition active:scale-95 hover:bg-rose-300"
+                className="btn btn-danger btn-sm absolute right-3 top-3"
               >
                 Delete
               </button>
@@ -145,7 +144,7 @@ export default function Lists({ mode, onNavigate }) {
       </div>
 
       {pendingDelete && (
-        <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
           <span>Deleted "{pendingDelete.list.name}"</span>
           <button
             type="button"
@@ -156,6 +155,6 @@ export default function Lists({ mode, onNavigate }) {
           </button>
         </div>
       )}
-    </div>
+    </Screen>
   );
 }

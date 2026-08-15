@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Screen from "../components/Screen.jsx";
 
 export default function Home({ onNavigate }) {
   const [latestList, setLatestList] = useState(null);
@@ -14,14 +15,12 @@ export default function Home({ onNavigate }) {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-8 overflow-hidden p-6">
-      <h1 className="text-5xl font-bold text-slate-700">My Spelling Buddy</h1>
+    <Screen centered max="max-w-2xl">
+      <h1 className="t-hero">My Spelling Buddy</h1>
 
       {latestList && (
-        <div className="w-full max-w-xl rounded-3xl bg-white p-5 shadow-lg">
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
-            Latest list: {latestList.name}
-          </p>
+        <div className="card w-full text-left">
+          <p className="t-label mb-2">Latest list: {latestList.name}</p>
           {latestWords.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {latestWords.map((word) => (
@@ -39,22 +38,22 @@ export default function Home({ onNavigate }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 sm:flex-row">
+      <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">
         <button
           type="button"
           onClick={() => onNavigate("lists", { mode: "practice" })}
-          className="rounded-3xl bg-emerald-400 px-16 py-10 text-3xl font-bold text-white shadow-lg transition active:scale-95"
+          className="btn btn-go btn-hero flex-1 sm:max-w-xs"
         >
           Practise
         </button>
         <button
           type="button"
           onClick={() => onNavigate("parentMenu")}
-          className="rounded-3xl bg-slate-300 px-16 py-10 text-2xl font-semibold text-slate-700 shadow-lg transition active:scale-95"
+          className="btn btn-secondary btn-hero flex-1 text-xl sm:max-w-[12rem]"
         >
           Parents
         </button>
       </div>
-    </div>
+    </Screen>
   );
 }

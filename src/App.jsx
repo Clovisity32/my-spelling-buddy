@@ -42,7 +42,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-sky-50 text-slate-800">
+    // h-full, not min-h-screen: each Screen inside is h-dvh, and 100dvh can
+    // be shorter than the 100vh min-h-screen would impose, which would make
+    // this wrapper taller than the viewport and get it clipped by
+    // body{overflow:hidden}.
+    <div className="h-full bg-sky-50 text-slate-800">
       {screen === "home" && <Home onNavigate={navigate} />}
       {screen === "parentMenu" && <ParentMenu onNavigate={navigate} />}
       {screen === "lists" && <Lists mode={params.mode} onNavigate={navigate} />}

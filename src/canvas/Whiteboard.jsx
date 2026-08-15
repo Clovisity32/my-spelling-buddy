@@ -94,8 +94,27 @@ const Whiteboard = forwardRef(function Whiteboard(
 
   useEffect(() => {
     fitCanvas();
+    // A window "resize" listener alone was not enough. Any in-app layout
+    // change that shrinks this container — the praise panel replacing the
+    // Save button, a toolbar row wrapping, the stars row changing height —
+    // fires no window event, so fitCanvas never re-ran and the canvas kept
+    // its stale inline height. It then overflowed its container and painted
+    // straight over the toolbar underneath. The window listener stays,
+    // because a ResizeObserver does not report devicePixelRatio changes.
+    //
+    // No feedback loop is possible here: the container is `flex-1 min-h-0`,
+    // so its height comes from its parent and never from the canvas child.
     window.addEventListener("resize", fitCanvas);
-    return () => window.removeEventListener("resize", fitCanvas);
+    const container = containerRef.current;
+    let ro;
+    if (container && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => fitCanvas());
+      ro.observe(container);
+    }
+    return () => {
+      window.removeEventListener("resize", fitCanvas);
+      if (ro) ro.disconnect();
+    };
   }, [fitCanvas]);
 
   // iPadOS recognizes system-wide multi-finger gestures (long-press ->
@@ -260,14 +279,15 @@ const Whiteboard = forwardRef(function Whiteboard(
   }));
 
   return (
-    <div className="flex h-full w-full flex-col gap-2">
+    <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden">
       <div
         ref={containerRef}
-        className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-white shadow-inner"
+        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
         data-stroke-count={strokeCount}
       >
         <canvas
           ref={canvasRef}
+          className="rounded-2xl bg-white shadow-inner"
           style={{ touchAction: "none", display: "block" }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -275,7 +295,7 @@ const Whiteboard = forwardRef(function Whiteboard(
           onPointerCancel={onPointerUp}
         />
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-white/80 p-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 rounded-2xl bg-white/80 p-2 short:gap-1.5">
         {COLORS.map((c) => (
           <button
             key={c}
@@ -285,7 +305,7 @@ const Whiteboard = forwardRef(function Whiteboard(
               setTool("pen");
               setColor(c);
             }}
-            className={`h-12 w-12 rounded-full border-4 transition active:scale-95 ${tool === "pen" && color === c ? "border-slate-700" : "border-transparent"}`}
+            className={`h-12 w-12 shrink-0 rounded-full border-4 transition active:scale-95 short:h-10 short:w-10 ${tool === "pen" && color === c ? "border-slate-700" : "border-transparent"}`}
             style={{ backgroundColor: c }}
           />
         ))}
@@ -301,7 +321,7 @@ const Whiteboard = forwardRef(function Whiteboard(
               setTool("pen");
               setPenSize(size);
             }}
-            className={`flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold capitalize transition active:scale-95 ${tool === "pen" && penSize === size ? "bg-slate-700 text-white" : "bg-slate-200"}`}
+            className={`flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold capitalize transition active:scale-95 short:px-3 short:py-2 ${tool === "pen" && penSize === size ? "bg-slate-700 text-white" : "bg-slate-200"}`}
           >
             <span
               className="inline-block rounded-full bg-current"
@@ -314,28 +334,28 @@ const Whiteboard = forwardRef(function Whiteboard(
         <button
           type="button"
           onClick={() => setTool("eraser")}
-          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 ${tool === "eraser" ? "bg-slate-700 text-white" : "bg-slate-200"}`}
+          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 short:px-3 short:py-2 ${tool === "eraser" ? "bg-slate-700 text-white" : "bg-slate-200"}`}
         >
           🧽 Eraser
         </button>
         <button
           type="button"
           onClick={undo}
-          className="rounded-full bg-amber-200 px-5 py-3 text-sm font-semibold transition active:scale-95"
+          className="rounded-full bg-amber-200 px-5 py-3 text-sm font-semibold transition active:scale-95 short:px-3 short:py-2"
         >
           ↺ Undo
         </button>
         <button
           type="button"
           onClick={clearBoard}
-          className="rounded-full bg-rose-200 px-5 py-3 text-sm font-semibold transition active:scale-95"
+          className="rounded-full bg-rose-200 px-5 py-3 text-sm font-semibold transition active:scale-95 short:px-3 short:py-2"
         >
           🗑 Clear
         </button>
         <button
           type="button"
           onClick={() => onFingerDrawChange(!fingerDraw)}
-          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 ${fingerDraw ? "bg-emerald-300" : "bg-slate-200"}`}
+          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 short:px-3 short:py-2 ${fingerDraw ? "bg-emerald-300" : "bg-slate-200"}`}
         >
           {fingerDraw ? "👆 Finger draw: on" : "👆 No pencil today?"}
         </button>

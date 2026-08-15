@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 /* Every screen fits within one viewport with no page-level scroll or
-   rubber-band bounce by default — each screen's root uses h-screen +
-   overflow-hidden to match. The Review (marking) screen is the one
-   deliberate exception: it opts back into scrolling on its own inner
-   container, not this one, so this global rule never needs to bend. */
+   rubber-band bounce by default — each screen renders inside <Screen>,
+   which uses h-dvh + overflow-hidden to match. The Review (marking) screen
+   is the one deliberate exception: it opts back into scrolling on its own
+   inner container, not this one, so this global rule never needs to bend. */
 html,
 body {
   height: 100%;
@@ -16,9 +16,95 @@ body {
      stops double-tap-to-zoom, which that meta tag alone doesn't cover on
      every browser. */
   touch-action: manipulation;
+  /* sky-50, matching the PWA manifest background_color. Without this the
+     safe-area strips beside the notch/home indicator paint white against
+     the app's pale blue. */
+  background-color: #f0f9ff;
 }
 #root {
   height: 100%;
+}
+
+@layer components {
+  /* One button system. Every button in the app is `.btn` plus exactly one
+     variant and (optionally) one size — replacing the ad-hoc class strings
+     that had drifted into three different Back-button recipes and two
+     different shades for the same "primary" role.
+
+     Deliberately CSS classes rather than a <Button> component: swapping a
+     className leaves the element, its role and its accessible name
+     byte-identical, so the Playwright suite keeps passing untouched. */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2
+      rounded-2xl px-6 py-3 text-base font-semibold
+      transition active:scale-95
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+      disabled:pointer-events-none disabled:opacity-40;
+    /* Apple's minimum comfortable touch target, and this app's user is 7. */
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    @apply rounded-xl px-4 py-2 text-sm;
+    min-height: 2.25rem;
+  }
+  .btn-lg {
+    @apply rounded-3xl px-8 py-4 text-xl;
+    min-height: 3.5rem;
+  }
+  /* Child-facing hero actions — big enough to hit without aiming. */
+  .btn-hero {
+    @apply rounded-3xl px-12 py-8 text-2xl shadow-lg;
+    min-height: 5rem;
+  }
+
+  /* sky = primary/neutral-positive action (parent-facing) */
+  .btn-primary {
+    @apply bg-sky-500 text-white shadow-sm hover:bg-sky-600 focus-visible:ring-sky-500;
+  }
+  /* emerald = go/confirm, the child-facing "forward" action */
+  .btn-go {
+    @apply bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 focus-visible:ring-emerald-500;
+  }
+  /* slate = secondary/dismiss, incl. every Back button */
+  .btn-secondary {
+    @apply bg-slate-200 text-slate-700 hover:bg-slate-300 focus-visible:ring-slate-400;
+  }
+  /* rose = destructive only. NOTE: the Review "correct" tick is also red on
+     purpose (a teacher's red pen, explicitly requested) — that is a badge,
+     not a button, so the two never appear as the same affordance. */
+  .btn-danger {
+    @apply bg-rose-100 text-rose-700 hover:bg-rose-200 focus-visible:ring-rose-400;
+  }
+  /* amber outline = "needs another go", deliberately not red so a redo never
+     reads as punishment on a screen a child may glance at */
+  .btn-redo {
+    @apply border-2 border-amber-400 bg-white text-amber-700 hover:bg-amber-50 focus-visible:ring-amber-400;
+  }
+  .btn-tts {
+    @apply bg-violet-500 text-white shadow-sm hover:bg-violet-600 focus-visible:ring-violet-500;
+  }
+
+  /* Surfaces. The hairline ring is what stops white-on-pale-blue cards from
+     dissolving into the background — the single biggest reason the old
+     screens read as unfinished. */
+  .card {
+    @apply rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5;
+  }
+  .card-tight {
+    @apply rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-900/5;
+  }
+
+  /* Type scale — three sizes, used everywhere, instead of per-screen
+     guesses ranging from text-lg to text-5xl. */
+  .t-page {
+    @apply text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl;
+  }
+  .t-hero {
+    @apply text-4xl font-bold tracking-tight text-slate-800 sm:text-5xl;
+  }
+  .t-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-400;
+  }
 }
 
 @keyframes tick-pop {

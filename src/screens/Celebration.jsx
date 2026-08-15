@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Screen from "../components/Screen.jsx";
 
 export default function Celebration({ listId, onNavigate }) {
   const [wordCount, setWordCount] = useState(0);
@@ -12,9 +13,9 @@ export default function Celebration({ listId, onNavigate }) {
   }, [listId]);
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-6 overflow-hidden p-6 text-center">
-      <p className="text-7xl">{"⭐️🎉⭐️"}</p>
-      <h2 className="text-4xl font-bold text-emerald-600">
+    <Screen centered max="max-w-2xl">
+      <p className="text-6xl sm:text-7xl">{"⭐️🎉⭐️"}</p>
+      <h2 className="text-3xl font-bold tracking-tight text-emerald-600 sm:text-4xl">
         You finished the whole list, Chloe!
       </h2>
 
@@ -32,22 +33,22 @@ export default function Celebration({ listId, onNavigate }) {
         </div>
       )}
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <button
           type="button"
           onClick={() => onNavigate("lists", { mode: "practice" })}
-          className="rounded-2xl bg-emerald-500 px-8 py-4 text-xl font-bold text-white transition active:scale-95"
+          className="btn btn-go btn-lg"
         >
           Practise Again
         </button>
         <button
           type="button"
           onClick={() => onNavigate("home")}
-          className="rounded-2xl bg-slate-300 px-8 py-4 text-xl font-bold text-slate-700 transition active:scale-95"
+          className="btn btn-secondary btn-lg"
         >
           Home
         </button>
       </div>
-    </div>
+    </Screen>
   );
 }

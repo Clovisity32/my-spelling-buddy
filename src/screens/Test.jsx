@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Whiteboard from "../canvas/Whiteboard.jsx";
 import { getRandomPraise } from "../praise.js";
+import Screen from "../components/Screen.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -46,24 +48,22 @@ export default function Test({
   if (!words) return null;
   if (words.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center overflow-hidden p-6 text-center">
-        <div className="flex flex-col items-center">
-          <p className="text-xl">
-            {wordId
-              ? "That word isn't there anymore."
-              : "This list has no words yet — ask a parent to add some!"}
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
-            }
-            className="mt-4 rounded-xl bg-slate-300 px-6 py-3 font-semibold text-slate-700"
-          >
-            {returnTo ? "Back" : "Home"}
-          </button>
-        </div>
-      </div>
+      <Screen centered max="max-w-xl">
+        <p className="text-xl text-slate-700">
+          {wordId
+            ? "That word isn't there anymore."
+            : "This list has no words yet — ask a parent to add some!"}
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+          }
+          className="btn btn-secondary"
+        >
+          {returnTo ? "Back" : "Home"}
+        </button>
+      </Screen>
     );
   }
 
@@ -101,60 +101,62 @@ export default function Test({
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        {words.length > 1 ? (
-          <p className="text-lg font-semibold text-slate-500">
-            Word {index + 1} of {words.length}
-          </p>
-        ) : (
-          <p className="text-lg font-semibold text-slate-500">
-            {returnTo ? "Have another try" : "Word 1 of 1"}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() =>
-            returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
-          }
-          className="rounded-xl bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition active:scale-95"
-        >
-          {returnTo ? "Back" : "Home"}
-        </button>
-      </div>
+    <Screen tight max="max-w-none">
+      <PageHeader
+        compact
+        title={
+          words.length > 1
+            ? `Word ${index + 1} of ${words.length}`
+            : returnTo
+              ? "Have another try"
+              : "Word 1 of 1"
+        }
+        onBack={() =>
+          returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+        }
+        backLabel={returnTo ? "Back" : "Home"}
+      />
 
       {words.length > 1 && (
         <>
-          <div className="mx-auto mb-3 h-4 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
+          <div className="mx-auto mb-2 h-2.5 w-full max-w-md shrink-0 overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500"
               style={{ width: `${(index / words.length) * 100}%` }}
             />
           </div>
 
-          <div className="mb-4 flex items-center justify-center gap-2">
-            {words.map((_, i) => {
-              // A word's star lights the moment it's saved, not only once
-              // the child taps "Next word" — the payoff should land right
-              // when she earns it.
-              const done = i < index || (i === index && !!praise);
-              const current = i === index && !praise;
-              return (
-                <span
-                  key={i}
-                  className={`transition-all duration-300 ${
-                    done
-                      ? "text-4xl text-amber-400"
-                      : current
-                        ? "text-5xl text-amber-300 drop-shadow"
-                        : "text-3xl text-slate-200"
-                  }`}
-                >
-                  {"★"}
-                </span>
-              );
-            })}
-          </div>
+          {/* Fixed-height row, and the stars scale with `transform` rather
+              than font-size. Both matter: a star growing from text-4xl to
+              text-5xl changed the row's height, which silently resized the
+              whiteboard below it. transform doesn't participate in layout.
+              Past 12 words the row would wrap to a second line (another
+              silent reflow), so the progress bar carries it alone. */}
+          {words.length <= 12 && (
+            <div className="mb-2 flex h-9 shrink-0 items-center justify-center gap-1.5 short:h-8">
+              {words.map((_, i) => {
+                // A word's star lights the moment it's saved, not only once
+                // the child taps "Next word" — the payoff should land right
+                // when she earns it.
+                const done = i < index || (i === index && !!praise);
+                const current = i === index && !praise;
+                return (
+                  <span
+                    key={i}
+                    className={`text-3xl leading-none transition-transform duration-300 ${
+                      done
+                        ? "scale-100 text-amber-400"
+                        : current
+                          ? "scale-125 text-amber-300 drop-shadow"
+                          : "scale-90 text-slate-200"
+                    }`}
+                  >
+                    {"★"}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
@@ -162,7 +164,7 @@ export default function Test({
         type="button"
         onClick={playWord}
         aria-label="Play the word"
-        className={`mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-400 text-4xl text-white shadow-lg transition active:scale-95 ${isPlayingAudio ? "scale-110 ring-8 ring-emerald-200" : ""}`}
+        className={`mx-auto mb-2 flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-4xl text-white shadow-lg transition active:scale-95 short:h-16 short:w-16 short:text-2xl ${isPlayingAudio ? "scale-110 ring-8 ring-emerald-200" : ""}`}
       >
         {"▶"}
       </button>
@@ -176,26 +178,34 @@ export default function Test({
         />
       </div>
 
-      {!praise ? (
-        <button
-          type="button"
-          onClick={save}
-          className="mt-4 rounded-2xl bg-sky-500 px-8 py-4 text-2xl font-bold text-white shadow"
-        >
-          Save
-        </button>
-      ) : (
-        <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl bg-white p-6 shadow">
-          <p className="text-2xl font-bold text-emerald-600">{praise}</p>
+      {/* Fixed-height footer. Save and the praise message occupy the same
+          slot at the same height, so saving a word cannot resize the
+          whiteboard above — which is what left the canvas at a stale size,
+          overflowing its container and painting over the toolbar. */}
+      <div className="mt-3 flex h-[4.5rem] shrink-0 items-center justify-center gap-4 short:mt-2 short:h-16">
+        {!praise ? (
           <button
             type="button"
-            onClick={next}
-            className="rounded-2xl bg-emerald-500 px-8 py-4 text-xl font-bold text-white"
+            onClick={save}
+            className="btn btn-primary btn-lg w-full max-w-[18rem]"
           >
-            {isLast && returnTo ? "Done — back to review" : "Next word"}
+            Save
           </button>
-        </div>
-      )}
-    </div>
+        ) : (
+          <>
+            <p className="min-w-0 truncate text-xl font-bold text-emerald-600">
+              {praise}
+            </p>
+            <button
+              type="button"
+              onClick={next}
+              className="btn btn-go btn-lg shrink-0"
+            >
+              {isLast && returnTo ? "Done — back to review" : "Next word"}
+            </button>
+          </>
+        )}
+      </div>
+    </Screen>
   );
 }

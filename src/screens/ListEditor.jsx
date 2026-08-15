@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toneNumbersToMarks } from "../pinyin.js";
+import Screen from "../components/Screen.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 const PINYIN_HINT_RE = /[a-zü]+[1-5]/i;
 // Any CJK ideograph. A word already written in characters needs no separate
@@ -223,11 +225,13 @@ export default function ListEditor({ listId, onNavigate }) {
         : "🎙 Your voice";
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-3xl font-bold text-slate-700">{list.name}</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow">
+    <Screen>
+      <PageHeader
+        title={list.name}
+        onBack={() => onNavigate("lists", { mode: "manage" })}
+        backLabel="Back to lists"
+        actions={
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/5">
             <input
               type="checkbox"
               checked={!!list.shuffle}
@@ -235,23 +239,17 @@ export default function ListEditor({ listId, onNavigate }) {
             />
             🔀 Shuffle order when Chloe practises
           </label>
-          <button
-            type="button"
-            onClick={() => onNavigate("lists", { mode: "manage" })}
-            className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
-          >
-            Back to lists
-          </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex-1 overflow-hidden">
-        <div className="mb-6 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow">
+      {/* Scrolls as a unit: on a short landscape iPad the add-word card plus
+          a long word list is genuinely taller than the viewport, and this is
+          a parent-only screen where reachability beats the no-scroll rule. */}
+      <div className="flex-1 overflow-y-auto pb-1">
+        <div className="card mb-5 flex flex-col gap-4">
           {/* Step 1: the word */}
           <div>
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-              1. Type the word
-            </span>
+            <span className="t-label mb-1 block">1. Type the word</span>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 ref={textInputRef}
@@ -262,13 +260,13 @@ export default function ListEditor({ listId, onNavigate }) {
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck="false"
-                className="min-w-[16rem] flex-1 rounded-xl border px-4 py-2"
+                className="min-w-[16rem] flex-1 rounded-xl border border-slate-300 px-4 py-2"
               />
               {looksLikePinyin && (
                 <button
                   type="button"
                   onClick={() => setText(toneNumbersToMarks(text))}
-                  className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold transition active:scale-95"
+                  className="btn btn-secondary btn-sm"
                 >
                   ni3 hao3 → nǐ hǎo
                 </button>
@@ -280,7 +278,7 @@ export default function ListEditor({ listId, onNavigate }) {
               answer. Only Latin-script words get this — see canAddCharacters. */}
           {canAddCharacters && (
             <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <span className="t-label mb-1 block">
                 1b. Chinese characters — optional
               </span>
               <input
@@ -288,7 +286,7 @@ export default function ListEditor({ listId, onNavigate }) {
                 onChange={(e) => setSpeechText(e.target.value)}
                 placeholder="你好"
                 aria-label="Chinese characters for audio"
-                className="min-w-[16rem] rounded-xl border px-4 py-2"
+                className="min-w-[16rem] rounded-xl border border-slate-300 px-4 py-2"
               />
               <p className="mt-1 text-xs text-slate-400">
                 Chloe still writes "{text.trim()}" — this is only what the app's
@@ -299,7 +297,7 @@ export default function ListEditor({ listId, onNavigate }) {
 
           {/* Step 2: how Chloe hears it */}
           <div>
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="t-label mb-1 block">
               2. How should Chloe hear it?
             </span>
             {pendingAudio ? (
@@ -312,7 +310,7 @@ export default function ListEditor({ listId, onNavigate }) {
                 <button
                   type="button"
                   onClick={playPending}
-                  className="rounded-lg bg-white px-3 py-1 text-sm font-semibold shadow transition active:scale-95"
+                  className="btn btn-secondary btn-sm bg-white"
                 >
                   {pendingAudio.useTts ? "Preview" : "Play preview"}
                 </button>
@@ -330,7 +328,7 @@ export default function ListEditor({ listId, onNavigate }) {
                   type="button"
                   onClick={toggleRecord}
                   disabled={recordState === "starting"}
-                  className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-60 ${recordState === "recording" ? "animate-pulse bg-rose-500" : "bg-sky-500"}`}
+                  className={`btn btn-sm ${recordState === "recording" ? "animate-pulse bg-rose-500 text-white hover:bg-rose-600" : "btn-primary"}`}
                 >
                   {recordLabel}
                 </button>
@@ -340,7 +338,7 @@ export default function ListEditor({ listId, onNavigate }) {
                     onClick={useTtsForWord}
                     disabled={!text.trim()}
                     title="Have the app read the word aloud instead of recording your own voice"
-                    className="rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
+                    className="btn btn-tts btn-sm"
                   >
                     🔊 App reads it
                   </button>
@@ -365,7 +363,7 @@ export default function ListEditor({ listId, onNavigate }) {
                       <select
                         value={ttsVoiceURI}
                         onChange={(e) => setTtsVoiceURI(e.target.value)}
-                        className="rounded-xl border px-3 py-2 text-sm"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                         aria-label="Chinese voice"
                       >
                         <option value="">Best available (Mandarin)</option>
@@ -407,7 +405,7 @@ export default function ListEditor({ listId, onNavigate }) {
               type="button"
               onClick={addWord}
               disabled={!text.trim() || !pendingAudio}
-              className="rounded-xl bg-emerald-500 px-6 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
+              className="btn btn-go btn-sm"
             >
               3. Add word
             </button>
@@ -421,13 +419,13 @@ export default function ListEditor({ listId, onNavigate }) {
           </div>
         </div>
 
-        <ul className="flex flex-col gap-2 overflow-hidden">
+        <ul className="flex flex-col gap-2">
           {words.map((word, i) => (
             <li
               key={word.id}
-              className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow"
+              className="card-tight flex flex-wrap items-center justify-between gap-3"
             >
-              <span className="text-lg">
+              <span className="min-w-0 text-lg text-slate-800">
                 {word.text}
                 {word.speechText && (
                   <span className="ml-2 text-base text-slate-500">
@@ -444,7 +442,7 @@ export default function ListEditor({ listId, onNavigate }) {
                 <button
                   type="button"
                   onClick={() => playWord(word)}
-                  className={`rounded-lg px-3 py-1 transition active:scale-95 hover:bg-slate-300 ${playingWordId === word.id ? "bg-sky-300" : "bg-slate-200"}`}
+                  className={`btn btn-sm ${playingWordId === word.id ? "bg-sky-200 text-sky-900" : "btn-secondary"}`}
                 >
                   {playingWordId === word.id ? "🔊 Playing…" : "Play"}
                 </button>
@@ -452,7 +450,7 @@ export default function ListEditor({ listId, onNavigate }) {
                   type="button"
                   onClick={() => move(i, -1)}
                   disabled={i === 0}
-                  className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95 hover:bg-slate-300 disabled:opacity-30"
+                  className="btn btn-secondary btn-sm"
                 >
                   Up
                 </button>
@@ -460,14 +458,14 @@ export default function ListEditor({ listId, onNavigate }) {
                   type="button"
                   onClick={() => move(i, 1)}
                   disabled={i === words.length - 1}
-                  className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95 hover:bg-slate-300 disabled:opacity-30"
+                  className="btn btn-secondary btn-sm"
                 >
                   Down
                 </button>
                 <button
                   type="button"
                   onClick={() => requestDelete(word)}
-                  className="rounded-lg bg-rose-200 px-3 py-1 transition active:scale-95 hover:bg-rose-300"
+                  className="btn btn-danger btn-sm"
                 >
                   Delete
                 </button>
@@ -478,7 +476,7 @@ export default function ListEditor({ listId, onNavigate }) {
       </div>
 
       {pendingDelete && (
-        <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
           <span>Deleted "{pendingDelete.word.text}"</span>
           <button
             type="button"
@@ -489,6 +487,6 @@ export default function ListEditor({ listId, onNavigate }) {
           </button>
         </div>
       )}
-    </div>
+    </Screen>
   );
 }
