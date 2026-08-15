@@ -27,6 +27,8 @@
 // voice's own name, since some engines only say "Cantonese"/"Hong Kong"
 // there and not in the BCP-47 tag at all) instead of anchoring to one
 // exact tag shape — verified against a simulated zh-Hant-HK voice.
+import { toneNumbersToMarks } from "../pinyin.js";
+
 const REGION_PREFERENCE = ["sg", "cn", "tw"]; // Singapore > Mainland > Taiwan
 
 function isCantoneseVoice(voice) {
@@ -109,10 +111,29 @@ function pickVoice(lang) {
   return voices.find((v) => v.lang?.toLowerCase().startsWith("en")) || null;
 }
 
+// Normalizes pinyin text right before it's spoken, regardless of how it was
+// typed or stored:
+//  - Raw tone-number pinyin ("san1") left unconverted reads as digits/odd
+//    syllables to a TTS engine — always run it through toneNumbersToMarks
+//    here rather than relying on a parent remembering to tap the "ni3 hao3
+//    -> nǐ hǎo" button in the editor before choosing "App reads it".
+//  - Mixed/upper-case letters (mobile keyboards auto-capitalize the first
+//    letter typed; caps lock produces a run of them) make some engines
+//    read the word as a spelled-out acronym ("S, A, N") instead of a
+//    normal syllable. Pinyin carries no meaningful case, so lower-casing
+//    before conversion sidesteps this regardless of how the text reached
+//    us — the conversion regex itself is already case-insensitive, so
+//    this only changes what gets spoken, not what toneNumbersToMarks can
+//    match.
+function pinyinForSpeech(text) {
+  return toneNumbersToMarks(text.toLowerCase());
+}
+
 export function speakWord(text, lang = "zh", voiceURI = null) {
   if (!isSpeechSynthesisSupported() || !text) return;
   window.speechSynthesis.cancel(); // don't let overlapping taps queue up
-  const utterance = new SpeechSynthesisUtterance(text);
+  const spokenText = lang === "zh" ? pinyinForSpeech(text) : text;
+  const utterance = new SpeechSynthesisUtterance(spokenText);
   // Re-fetch fresh voice objects right before speaking rather than reusing
   // ones handed in earlier — some browsers only reliably honor
   // utterance.voice when it's a voice object from the most recent
@@ -135,4 +156,22 @@ export function speakWord(text, lang = "zh", voiceURI = null) {
   }
   utterance.rate = 0.9;
   window.speechSynthesis.speak(utterance);
+}
+
+// Speaks a stored word. Prefers its speechText (the Chinese characters a
+// parent supplied for a pinyin word) over the answer text itself, because
+// a Mandarin engine reads characters and not romanization — see
+// storage/index.js's addWord. Every screen that plays a saved word goes
+// through here so they can't drift apart on which field wins.
+export function speakWordEntry(word) {
+  if (!word) return;
+  speakWord(word.speechText || word.text, word.ttsLang, word.ttsVoiceURI);
+}
+
+// True when the device has no Mandarin voice at all. speakWord falls back
+// to a bare "zh-CN" lang request in that case, which on a stock iPad means
+// the default *English* voice reads the text — audibly wrong, and with
+// nothing on screen to explain why. The editor uses this to warn instead.
+export function hasMandarinVoice() {
+  return loadVoices().some(isMandarinVoice);
 }

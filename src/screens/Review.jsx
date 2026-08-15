@@ -71,8 +71,7 @@ export default function Review({ listId, focusWordId, onNavigate }) {
   }
 
   function playAudio(word) {
-    if (word.useTts)
-      window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
+    if (word.useTts) window.__audio.speakWordEntry(word);
     else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
   }
 
@@ -81,18 +80,32 @@ export default function Review({ listId, focusWordId, onNavigate }) {
   const markedCount = rows.filter((r) => r.ticked).length;
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="flex h-screen flex-col overflow-hidden p-6">
       <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-3xl font-bold text-slate-700">
           Reviewing: {list.name}
         </h2>
-        {rows.length > 0 && (
-          <p className="text-lg font-semibold text-slate-500">
-            {markedCount} of {rows.length} marked
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {rows.length > 0 && (
+            <p className="text-lg font-semibold text-slate-500">
+              {markedCount} of {rows.length} marked
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => onNavigate("lists", { mode: "review" })}
+            className="rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
+          >
+            Back to lists
+          </button>
+        </div>
       </div>
-      <div className="flex max-w-2xl flex-col gap-6">
+      {/* The one screen in the app that scrolls — every other screen fits
+          the viewport and clips instead (see index.css). A completed list
+          can easily be taller than one screen, and Chloe never needs this
+          screen at all (it's parent-only), so trading the app's usual
+          no-scroll feel for reachability here is the right call. */}
+      <div className="flex max-w-2xl flex-1 flex-col gap-6 overflow-y-auto">
         {rows.map(({ word, strokes, ticked }) => {
           const attempted = strokes.length > 0;
           return (
@@ -110,7 +123,7 @@ export default function Review({ listId, focusWordId, onNavigate }) {
                     <span
                       role="img"
                       aria-label="Marked correct"
-                      className={`text-emerald-500 ${justTickedId === word.id ? "tick-pop" : ""}`}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full bg-rose-100 text-3xl font-bold text-rose-500 ${justTickedId === word.id ? "tick-pop" : ""}`}
                     >
                       ✓
                     </span>
@@ -161,13 +174,6 @@ export default function Review({ listId, focusWordId, onNavigate }) {
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={() => onNavigate("lists", { mode: "review" })}
-        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
-      >
-        Back to lists
-      </button>
     </div>
   );
 }

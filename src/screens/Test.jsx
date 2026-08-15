@@ -46,7 +46,7 @@ export default function Test({
   if (!words) return null;
   if (words.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6 text-center">
+      <div className="flex h-screen items-center justify-center overflow-hidden p-6 text-center">
         <div className="flex flex-col items-center">
           <p className="text-xl">
             {wordId
@@ -71,8 +71,7 @@ export default function Test({
   const isLast = index + 1 >= words.length;
 
   function playWord() {
-    if (word.useTts)
-      window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
+    if (word.useTts) window.__audio.speakWordEntry(word);
     else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
     else return;
     // A tap with no visible response reads as broken to a child who can't

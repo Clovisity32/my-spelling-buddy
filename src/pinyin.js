@@ -11,6 +11,14 @@ const TONE_MARKS = {
   ü: ["ü", "ǖ", "ǘ", "ǚ", "ǜ"],
 };
 
+// Every "v" left in a syllable is a keyboard stand-in for ü, not just the
+// one the tone happens to land on. In "lve4" the ü is the v, but the tone
+// belongs on the e ("lüè") — converting only the tone-bearing vowel left
+// the v sitting there untouched as "lvè".
+function convertV(chunk) {
+  return chunk.replace(/v/g, "ü").replace(/V/g, "Ü");
+}
+
 function markVowel(syllable, tone) {
   const lower = syllable.toLowerCase();
   let vowelIndex = -1;
@@ -26,20 +34,27 @@ function markVowel(syllable, tone) {
       }
     }
   }
-  if (vowelIndex === -1) return syllable;
+  if (vowelIndex === -1) return convertV(syllable);
   const raw = lower[vowelIndex];
   const vowelChar = raw === "v" ? "ü" : raw;
   const marked = TONE_MARKS[vowelChar]?.[tone];
-  if (!marked) return syllable;
+  if (!marked) return convertV(syllable);
+  // The marked vowel has to keep the case of the letter it replaces, or a
+  // capitalized syllable comes back mixed-case: "SAN1" produced "SāN"
+  // (lowercase mark dropped into an uppercase word) instead of "SĀN".
+  const isUpper = syllable[vowelIndex] !== syllable[vowelIndex].toLowerCase();
   return (
-    syllable.slice(0, vowelIndex) + marked + syllable.slice(vowelIndex + 1)
+    convertV(syllable.slice(0, vowelIndex)) +
+    (isUpper ? marked.toUpperCase() : marked) +
+    convertV(syllable.slice(vowelIndex + 1))
   );
 }
 
 export function toneNumbersToMarks(text) {
-  return text.replace(/([a-zA-Zü]+)([1-5])/g, (match, syllable, toneStr) => {
+  return text.replace(/([a-zA-ZüÜ]+)([1-5])/g, (match, syllable, toneStr) => {
     const tone = Number(toneStr);
-    if (tone === 5) return syllable; // neutral tone, no mark
+    // Neutral tone carries no mark, but a "v" in it is still a ü.
+    if (tone === 5) return convertV(syllable);
     return markVowel(syllable, tone);
   });
 }

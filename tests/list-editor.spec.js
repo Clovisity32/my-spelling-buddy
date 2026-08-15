@@ -61,7 +61,13 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
   await page.getByRole("button", { name: "Your voice" }).click();
   await page.getByRole("button", { name: "Stop" }).click();
   await page.getByRole("button", { name: "Add word" }).click();
-  await expect(page.getByText("apple")).toBeVisible();
+  // Scoped to the saved-word list, not page.getByText: the "Chinese
+  // characters" hint echoes the word being typed ('Chloe still writes
+  // "apple"'), so a bare text match resolves before the word is actually
+  // stored and stops acting as a wait for the add to finish.
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "apple" }),
+  ).toHaveCount(1);
 
   await page
     .getByPlaceholder("Word, phrase, character, or pinyin")
@@ -69,7 +75,9 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
   await page.getByRole("button", { name: "Your voice" }).click();
   await page.getByRole("button", { name: "Stop" }).click();
   await page.getByRole("button", { name: "Add word" }).click();
-  await expect(page.getByText("banana")).toBeVisible();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "banana" }),
+  ).toHaveCount(1);
 
   let words = await page.evaluate(
     ({ listId }) => window.__storage.getWords(listId),
