@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { toneNumbersToMarks } from "../pinyin.js";
 
+const PINYIN_HINT_RE = /[a-zü]+[1-5]/i;
+
 export default function ListEditor({ listId, onNavigate }) {
   const [list, setList] = useState(null);
   const [words, setWords] = useState([]);
   const [text, setText] = useState("");
   const [recordState, setRecordState] = useState("idle"); // idle | starting | recording
-  const [pendingAudio, setPendingAudio] = useState(null); // {blob,mime} or {useTts:true}
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [pendingAudio, setPendingAudio] = useState(null); // {blob,mime} or {useTts:true,...}
   const [recordError, setRecordError] = useState(null);
   const [playingWordId, setPlayingWordId] = useState(null);
   const [ttsLang, setTtsLang] = useState("zh");
   const [ttsVoiceURI, setTtsVoiceURI] = useState("");
   const [chineseVoices, setChineseVoices] = useState([]);
+  const [pendingDelete, setPendingDelete] = useState(null); // {word, timerId}
   const recorderRef = useRef(null);
+  const textInputRef = useRef(null);
+  const recordIntervalRef = useRef(null);
 
   async function refresh() {
     setList(await window.__storage.getList(listId));
@@ -44,15 +50,20 @@ export default function ListEditor({ listId, onNavigate }) {
     return undefined;
   }, []);
 
-  // Give the mic back when the parent leaves this screen, rather than
-  // holding the OS mic indicator on for the rest of the app session — the
-  // stream is cached and reused across recordings while here specifically
-  // to cut the start-up lag between "tap Record" and audio actually
-  // capturing (worst on short pinyin syllables, which lose their opening
-  // sound if speech starts before the mic is truly ready).
+  // Give the mic back when the parent leaves this screen, and finalize any
+  // delete still waiting on its undo window, rather than losing it.
   useEffect(() => {
-    return () => window.__audio.releaseMicrophone();
+    return () => {
+      window.__audio.releaseMicrophone();
+      if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+    };
   }, []);
+
+  async function toggleShuffle() {
+    const next = !list.shuffle;
+    await window.__storage.setListShuffle(listId, next);
+    refresh();
+  }
 
   async function toggleRecord() {
     if (recordState === "idle") {
@@ -61,7 +72,12 @@ export default function ListEditor({ listId, onNavigate }) {
       try {
         recorderRef.current = await window.__audio.startRecording();
         setRecordState("recording");
+        setRecordSeconds(0);
         window.__audio.playRecordStartCue();
+        recordIntervalRef.current = setInterval(
+          () => setRecordSeconds((s) => s + 1),
+          1000,
+        );
       } catch {
         setRecordState("idle");
         setRecordError(
@@ -69,6 +85,7 @@ export default function ListEditor({ listId, onNavigate }) {
         );
       }
     } else if (recordState === "recording") {
+      clearInterval(recordIntervalRef.current);
       const { blob, mime } = await recorderRef.current.stop();
       setPendingAudio({ blob, mime });
       setRecordState("idle");
@@ -86,6 +103,10 @@ export default function ListEditor({ listId, onNavigate }) {
     window.__audio.speakWord(text.trim(), ttsLang, ttsVoiceURI || null);
   }
 
+  function resetSoundChoice() {
+    setPendingAudio(null);
+  }
+
   async function addWord() {
     if (!text.trim() || !pendingAudio) return;
     await window.__storage.addWord(listId, {
@@ -99,10 +120,37 @@ export default function ListEditor({ listId, onNavigate }) {
     setText("");
     setPendingAudio(null);
     refresh();
+    textInputRef.current?.focus();
   }
 
-  async function removeWord(wordId) {
-    await window.__storage.deleteWord(listId, wordId);
+  function handleTextKeyDown(e) {
+    if (e.key === "Enter" && text.trim() && pendingAudio) {
+      e.preventDefault();
+      addWord();
+    }
+  }
+
+  // Delete is undoable: hide it from the list immediately, but only
+  // actually remove it from storage after a few seconds with no Undo. A
+  // second delete while one is already pending finalizes the first rather
+  // than losing track of it.
+  function requestDelete(word) {
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timerId);
+      window.__storage.deleteWord(listId, pendingDelete.word.id);
+    }
+    setWords((ws) => ws.filter((w) => w.id !== word.id));
+    const timerId = setTimeout(() => {
+      window.__storage.deleteWord(listId, word.id);
+      setPendingDelete(null);
+    }, 4000);
+    setPendingDelete({ word, timerId });
+  }
+
+  function undoDelete() {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timerId);
+    setPendingDelete(null);
     refresh();
   }
 
@@ -149,119 +197,171 @@ export default function ListEditor({ listId, onNavigate }) {
 
   if (!list) return null;
 
+  const looksLikePinyin = PINYIN_HINT_RE.test(text);
   const recordLabel =
     recordState === "recording"
-      ? "Stop recording"
+      ? `⏺ Stop (${recordSeconds}s)`
       : recordState === "starting"
         ? "Starting…"
-        : "Record";
+        : "🎙 Your voice";
 
   return (
     <div className="min-h-screen p-6">
-      <h2 className="mb-4 text-3xl font-bold text-slate-700">{list.name}</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-3xl font-bold text-slate-700">{list.name}</h2>
+        <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow">
+          <input
+            type="checkbox"
+            checked={!!list.shuffle}
+            onChange={toggleShuffle}
+          />
+          🔀 Shuffle order when Chloe practises
+        </label>
+      </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Word, phrase, character, or pinyin (ni3 hao3)"
-          className="min-w-[16rem] flex-1 rounded-xl border px-4 py-2"
-        />
-        <button
-          type="button"
-          onClick={() => setText(toneNumbersToMarks(text))}
-          disabled={!text.trim()}
-          title="Type pinyin with tone numbers (ni3 hao3), then tap this to convert to tone marks (nǐ hǎo)"
-          className="rounded-xl bg-slate-200 px-4 py-2 font-semibold transition active:scale-95 disabled:opacity-40"
-        >
-          1→ā tone marks
-        </button>
-        <button
-          type="button"
-          onClick={toggleRecord}
-          disabled={recordState === "starting"}
-          className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-60 ${recordState === "recording" ? "bg-rose-500" : "bg-sky-500"}`}
-        >
-          {recordLabel}
-        </button>
-        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
-          <button
-            type="button"
-            onClick={() => setTtsLang("zh")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "zh" ? "bg-white shadow" : "text-slate-500"}`}
-          >
-            中文
-          </button>
-          <button
-            type="button"
-            onClick={() => setTtsLang("en")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "en" ? "bg-white shadow" : "text-slate-500"}`}
-          >
-            EN
-          </button>
-        </div>
-        {ttsLang === "zh" && chineseVoices.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <select
-              value={ttsVoiceURI}
-              onChange={(e) => setTtsVoiceURI(e.target.value)}
-              className="rounded-xl border px-3 py-2 text-sm"
-              aria-label="Chinese voice"
-            >
-              <option value="">Best available (Mandarin)</option>
-              {chineseVoices.map((v) => (
-                <option key={v.voiceURI} value={v.voiceURI}>
-                  {v.name} ({v.lang})
-                  {v.isCantonese ? " — Cantonese, not Mandarin" : ""}
-                  {v.localService ? "" : " — needs download"}
-                </option>
-              ))}
-            </select>
-            {chineseVoices.some((v) => v.isCantonese) && (
-              <p className="max-w-xs text-xs text-slate-500">
-                Voices labelled "Hong Kong"/"HK" are usually Cantonese — a
-                different spoken language from Mandarin, not just an accent.
-                Pinyin is written for Mandarin pronunciation, so a Mandarin
-                voice (Mainland/Taiwan) is the correct match, even though a
-                Cantonese voice can sound more distinctly different.
-              </p>
-            )}
-            {chineseVoices.some((v) => !v.localService) && (
-              <p className="max-w-xs text-xs text-amber-600">
-                Voices marked "needs download" often silently play in a
-                different voice until downloaded: check your device's
-                accessibility / spoken-content voice settings.
-              </p>
+      <div className="mb-6 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow">
+        {/* Step 1: the word */}
+        <div>
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            1. Type the word
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={textInputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleTextKeyDown}
+              placeholder="Word, phrase, character, or pinyin"
+              className="min-w-[16rem] flex-1 rounded-xl border px-4 py-2"
+            />
+            {looksLikePinyin && (
+              <button
+                type="button"
+                onClick={() => setText(toneNumbersToMarks(text))}
+                className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold transition active:scale-95"
+              >
+                ni3 hao3 → nǐ hǎo
+              </button>
             )}
           </div>
-        )}
-        <button
-          type="button"
-          onClick={useTtsForWord}
-          disabled={!text.trim()}
-          title="Have the app read the word aloud instead of recording your own voice"
-          className="rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
-        >
-          🔊 Read it for me
-        </button>
-        {recordError && <p className="text-sm text-rose-600">{recordError}</p>}
-        {pendingAudio && (
+        </div>
+
+        {/* Step 2: how Chloe hears it */}
+        <div>
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            2. How should Chloe hear it?
+          </span>
+          {pendingAudio ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-2">
+              <span className="font-semibold text-emerald-700">
+                {pendingAudio.useTts
+                  ? "✓ The app will read it aloud"
+                  : "✓ Your recording is ready"}
+              </span>
+              <button
+                type="button"
+                onClick={playPending}
+                className="rounded-lg bg-white px-3 py-1 text-sm font-semibold shadow transition active:scale-95"
+              >
+                {pendingAudio.useTts ? "Preview" : "Play preview"}
+              </button>
+              <button
+                type="button"
+                onClick={resetSoundChoice}
+                className="text-sm font-semibold text-slate-500 underline"
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-start gap-3">
+              <button
+                type="button"
+                onClick={toggleRecord}
+                disabled={recordState === "starting"}
+                className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-60 ${recordState === "recording" ? "animate-pulse bg-rose-500" : "bg-sky-500"}`}
+              >
+                {recordLabel}
+              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={useTtsForWord}
+                  disabled={!text.trim()}
+                  title="Have the app read the word aloud instead of recording your own voice"
+                  className="rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
+                >
+                  🔊 App reads it
+                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setTtsLang("zh")}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "zh" ? "bg-white shadow" : "text-slate-500"}`}
+                    >
+                      中文
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTtsLang("en")}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "en" ? "bg-white shadow" : "text-slate-500"}`}
+                    >
+                      EN
+                    </button>
+                  </div>
+                  {ttsLang === "zh" && chineseVoices.length > 0 && (
+                    <select
+                      value={ttsVoiceURI}
+                      onChange={(e) => setTtsVoiceURI(e.target.value)}
+                      className="rounded-xl border px-3 py-2 text-sm"
+                      aria-label="Chinese voice"
+                    >
+                      <option value="">Best available (Mandarin)</option>
+                      {chineseVoices.map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name} ({v.lang})
+                          {v.isCantonese ? " — Cantonese, not Mandarin" : ""}
+                          {v.localService ? "" : " — needs download"}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                {chineseVoices.some((v) => v.isCantonese) && (
+                  <p className="max-w-xs text-xs text-slate-500">
+                    "Hong Kong"/"HK" voices are usually Cantonese, a different
+                    spoken language from Mandarin — pinyin is written for
+                    Mandarin, so a Mainland/Taiwan voice is the correct match
+                    even though Cantonese sounds more distinct.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {recordError && (
+            <p className="mt-2 text-sm text-rose-600">{recordError}</p>
+          )}
+        </div>
+
+        {/* Step 3: add */}
+        <div>
           <button
             type="button"
-            onClick={playPending}
-            className="rounded-xl bg-slate-200 px-4 py-2 transition active:scale-95"
+            onClick={addWord}
+            disabled={!text.trim() || !pendingAudio}
+            className="rounded-xl bg-emerald-500 px-6 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
           >
-            {pendingAudio.useTts ? "Preview" : "Play preview"}
+            3. Add word
           </button>
-        )}
-        <button
-          type="button"
-          onClick={addWord}
-          disabled={!text.trim() || !pendingAudio}
-          className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40"
-        >
-          Add word
-        </button>
+          {(!text.trim() || !pendingAudio) && (
+            <p className="mt-1 text-xs text-slate-400">
+              {!text.trim()
+                ? "Type a word first."
+                : 'Record your voice or tap "App reads it" above, then Add word.'}
+            </p>
+          )}
+        </div>
       </div>
 
       <ul className="flex flex-col gap-2">
@@ -272,38 +372,40 @@ export default function ListEditor({ listId, onNavigate }) {
           >
             <span className="text-lg">
               {word.text}
-              {word.useTts && (
-                <span className="ml-2 text-xs font-semibold text-violet-500">
-                  🔊 spoken
-                </span>
-              )}
+              <span
+                className={`ml-2 text-xs font-semibold ${word.useTts ? "text-violet-500" : "text-sky-500"}`}
+              >
+                {word.useTts ? "🔊 app voice" : "🎙 your voice"}
+              </span>
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => playWord(word)}
-                className={`rounded-lg px-3 py-1 transition active:scale-95 ${playingWordId === word.id ? "bg-sky-300" : "bg-slate-200"}`}
+                className={`rounded-lg px-3 py-1 transition active:scale-95 hover:bg-slate-300 ${playingWordId === word.id ? "bg-sky-300" : "bg-slate-200"}`}
               >
                 {playingWordId === word.id ? "🔊 Playing…" : "Play"}
               </button>
               <button
                 type="button"
                 onClick={() => move(i, -1)}
-                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95"
+                disabled={i === 0}
+                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95 hover:bg-slate-300 disabled:opacity-30"
               >
                 Up
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
-                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95"
+                disabled={i === words.length - 1}
+                className="rounded-lg bg-slate-200 px-3 py-1 transition active:scale-95 hover:bg-slate-300 disabled:opacity-30"
               >
                 Down
               </button>
               <button
                 type="button"
-                onClick={() => removeWord(word.id)}
-                className="rounded-lg bg-rose-200 px-3 py-1 transition active:scale-95"
+                onClick={() => requestDelete(word)}
+                className="rounded-lg bg-rose-200 px-3 py-1 transition active:scale-95 hover:bg-rose-300"
               >
                 Delete
               </button>
@@ -315,10 +417,23 @@ export default function ListEditor({ listId, onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "manage" })}
-        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
       >
         Back to lists
       </button>
+
+      {pendingDelete && (
+        <div className="fixed bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-white shadow-lg">
+          <span>Deleted "{pendingDelete.word.text}"</span>
+          <button
+            type="button"
+            onClick={undoDelete}
+            className="font-semibold text-sky-300 underline"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

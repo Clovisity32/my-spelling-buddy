@@ -9,9 +9,23 @@ function uid() {
 }
 
 export async function createList(name) {
-  const list = { id: uid(), name, createdAt: Date.now(), wordOrder: [] };
+  const list = {
+    id: uid(),
+    name,
+    createdAt: Date.now(),
+    wordOrder: [],
+    shuffle: false,
+  };
   await idb.put("lists", list);
   return list;
+}
+
+// Shuffle is a per-list setting the parent chooses once (list editor), not
+// a checkbox Chloe has to work through before every practice session.
+export async function setListShuffle(listId, shuffle) {
+  const list = await idb.get("lists", listId);
+  if (!list) return;
+  await idb.put("lists", { ...list, shuffle });
 }
 
 export async function getLists() {

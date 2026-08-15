@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StrokeReplay from "../canvas/StrokeReplay.jsx";
 
-export default function Review({ listId, onNavigate }) {
+export default function Review({ listId, focusWordId, onNavigate }) {
   const [list, setList] = useState(null);
   const [rows, setRows] = useState([]);
   // Transient — drives the brief celebratory pop/pulse. Separate from the
@@ -9,6 +9,8 @@ export default function Review({ listId, onNavigate }) {
   // page full of permanently-pulsing badges (the pulse used to be
   // `animate-ping`'s default `infinite`, which never actually stopped).
   const [justTickedId, setJustTickedId] = useState(null);
+  const [highlightId, setHighlightId] = useState(null);
+  const cardRefs = useRef({});
 
   async function refresh() {
     const l = await window.__storage.getList(listId);
@@ -26,6 +28,22 @@ export default function Review({ listId, onNavigate }) {
   useEffect(() => {
     refresh();
   }, [listId]);
+
+  // Coming back from a Redo lands on a specific word rather than the top of
+  // a potentially long, fully re-scrolled list — a parent redoing several
+  // words in a row otherwise pays a full re-scroll every single time.
+  useEffect(() => {
+    if (!focusWordId || rows.length === 0) return;
+    const el = cardRefs.current[focusWordId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightId(focusWordId);
+    const t = setTimeout(
+      () => setHighlightId((id) => (id === focusWordId ? null : id)),
+      2000,
+    );
+    return () => clearTimeout(t);
+  }, [focusWordId, rows.length]);
 
   // Mark correct is a toggle: tapping an already-ticked word un-marks it,
   // so a mis-tap doesn't require the full Redo round-trip to undo.
@@ -46,7 +64,7 @@ export default function Review({ listId, onNavigate }) {
   // makes the old mark stale either way) and send the student back to the
   // usual practice screen for just this one word. Test.jsx returns here
   // (rather than to Celebration) once they've heard it, written it again,
-  // and saved.
+  // and saved, passing the word id back so we can scroll to it.
   async function redo(wordId) {
     await window.__storage.setMark(listId, wordId, false);
     onNavigate("test", { listId, wordId, returnTo: "review" });
@@ -74,13 +92,16 @@ export default function Review({ listId, onNavigate }) {
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-6">
+      <div className="flex max-w-2xl flex-col gap-6">
         {rows.map(({ word, strokes, ticked }) => {
           const attempted = strokes.length > 0;
           return (
             <div
               key={word.id}
-              className="relative rounded-2xl bg-white p-4 shadow"
+              ref={(el) => {
+                cardRefs.current[word.id] = el;
+              }}
+              className={`relative rounded-2xl bg-white p-4 shadow transition-shadow ${highlightId === word.id ? "ring-4 ring-sky-300" : ""}`}
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2 text-2xl font-semibold">
@@ -98,7 +119,7 @@ export default function Review({ listId, onNavigate }) {
                 <button
                   type="button"
                   onClick={() => playAudio(word)}
-                  className="rounded-lg bg-slate-200 px-4 py-2 transition active:scale-95 hover:bg-slate-300"
+                  className="rounded-lg bg-slate-200 px-5 py-2.5 transition hover:bg-slate-300 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
                 >
                   Play
                 </button>
@@ -112,13 +133,13 @@ export default function Review({ listId, onNavigate }) {
                 </p>
               )}
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-3">
                 <button
                   type="button"
                   onClick={() => toggleTick(word.id, ticked)}
                   disabled={!attempted}
                   aria-pressed={ticked}
-                  className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40 ${
+                  className={`rounded-xl px-5 py-2.5 font-semibold text-white transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:opacity-40 ${
                     ticked
                       ? "bg-emerald-600 hover:bg-emerald-700"
                       : "bg-emerald-500 hover:bg-emerald-600"
@@ -131,7 +152,7 @@ export default function Review({ listId, onNavigate }) {
                   onClick={() => redo(word.id)}
                   disabled={!attempted}
                   title="Not correct — send back to hear it and write it again"
-                  className="rounded-xl bg-amber-400 px-4 py-2 font-semibold text-white transition active:scale-95 hover:bg-amber-500 disabled:opacity-40"
+                  className="rounded-xl border-2 border-amber-400 bg-white px-5 py-2.5 font-semibold text-amber-600 transition active:scale-95 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 disabled:opacity-40"
                 >
                   Redo
                 </button>
@@ -143,7 +164,7 @@ export default function Review({ listId, onNavigate }) {
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "review" })}
-        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
       >
         Back to lists
       </button>

@@ -62,7 +62,11 @@ export default function App() {
         <Celebration listId={params.listId} onNavigate={navigate} />
       )}
       {screen === "review" && (
-        <Review listId={params.listId} onNavigate={navigate} />
+        <Review
+          listId={params.listId}
+          focusWordId={params.focusWordId}
+          onNavigate={navigate}
+        />
       )}
     </div>
   );

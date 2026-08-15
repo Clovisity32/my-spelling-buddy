@@ -32,6 +32,7 @@ export default function Test({
   // on any non-Pencil device, with the only escape being a text button she
   // can't read.
   const [fingerDraw, setFingerDraw] = useState(true);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const wbRef = useRef(null);
 
   useEffect(() => {
@@ -73,6 +74,12 @@ export default function Test({
     if (word.useTts)
       window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
     else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
+    else return;
+    // A tap with no visible response reads as broken to a child who can't
+    // diagnose "volume's down" or "autoplay got blocked" — a brief pulse
+    // is at least proof the tap registered.
+    setIsPlayingAudio(true);
+    setTimeout(() => setIsPlayingAudio(false), 1400);
   }
 
   async function save() {
@@ -85,7 +92,10 @@ export default function Test({
   function next() {
     setPraise(null);
     if (isLast) {
-      onNavigate(returnTo || "celebration", { listId });
+      onNavigate(
+        returnTo || "celebration",
+        returnTo ? { listId, focusWordId: word.id } : { listId },
+      );
     } else {
       setIndex(index + 1);
     }
@@ -108,7 +118,7 @@ export default function Test({
           onClick={() =>
             returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
           }
-          className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition active:scale-95"
+          className="rounded-xl bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition active:scale-95"
         >
           {returnTo ? "Back" : "Home"}
         </button>
@@ -124,20 +134,27 @@ export default function Test({
           </div>
 
           <div className="mb-4 flex items-center justify-center gap-2">
-            {words.map((_, i) => (
-              <span
-                key={i}
-                className={`transition-all duration-300 ${
-                  i < index
-                    ? "text-4xl text-amber-400"
-                    : i === index
-                      ? "text-5xl text-amber-300 drop-shadow"
-                      : "text-3xl text-slate-200"
-                }`}
-              >
-                {"★"}
-              </span>
-            ))}
+            {words.map((_, i) => {
+              // A word's star lights the moment it's saved, not only once
+              // the child taps "Next word" — the payoff should land right
+              // when she earns it.
+              const done = i < index || (i === index && !!praise);
+              const current = i === index && !praise;
+              return (
+                <span
+                  key={i}
+                  className={`transition-all duration-300 ${
+                    done
+                      ? "text-4xl text-amber-400"
+                      : current
+                        ? "text-5xl text-amber-300 drop-shadow"
+                        : "text-3xl text-slate-200"
+                  }`}
+                >
+                  {"★"}
+                </span>
+              );
+            })}
           </div>
         </>
       )}
@@ -146,7 +163,7 @@ export default function Test({
         type="button"
         onClick={playWord}
         aria-label="Play the word"
-        className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-400 text-4xl text-white shadow-lg active:scale-95"
+        className={`mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-400 text-4xl text-white shadow-lg transition active:scale-95 ${isPlayingAudio ? "scale-110 ring-8 ring-emerald-200" : ""}`}
       >
         {"▶"}
       </button>

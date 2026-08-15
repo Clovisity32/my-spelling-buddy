@@ -38,6 +38,11 @@ const Whiteboard = forwardRef(function Whiteboard(
   const lastPointRef = useRef(null);
   const pendingResizeRef = useRef(false);
   const activePointersRef = useRef(new Map());
+  // Holds whatever Clear just wiped, so the very next Undo can restore it
+  // whole rather than Clear being an unrecoverable action sitting right
+  // next to Undo. Cleared as soon as new drawing starts, so Undo reverts
+  // to normal single-stroke behavior once the board has moved on.
+  const preClearRef = useRef(null);
   const [tool, setTool] = useState("pen");
   const [color, setColor] = useState(COLORS[0]);
   const [penSize, setPenSize] = useState("medium");
@@ -172,6 +177,7 @@ const Whiteboard = forwardRef(function Whiteboard(
       points: [x, y],
     };
     strokesRef.current.push(stroke);
+    preClearRef.current = null;
     setStrokeCount(strokesRef.current.length);
     drawingRef.current = true;
     drawingPointerIdRef.current = e.pointerId;
@@ -225,6 +231,13 @@ const Whiteboard = forwardRef(function Whiteboard(
   }
 
   function undo() {
+    if (strokesRef.current.length === 0 && preClearRef.current) {
+      strokesRef.current = preClearRef.current;
+      preClearRef.current = null;
+      setStrokeCount(strokesRef.current.length);
+      fullRepaint();
+      return;
+    }
     if (strokesRef.current.length === 0) return;
     strokesRef.current.pop();
     setStrokeCount(strokesRef.current.length);
@@ -232,6 +245,9 @@ const Whiteboard = forwardRef(function Whiteboard(
   }
 
   function clearBoard() {
+    if (strokesRef.current.length > 0) {
+      preClearRef.current = strokesRef.current;
+    }
     strokesRef.current = [];
     setStrokeCount(0);
     fullRepaint();
@@ -269,11 +285,15 @@ const Whiteboard = forwardRef(function Whiteboard(
               setTool("pen");
               setColor(c);
             }}
-            className={`h-10 w-10 rounded-full border-4 ${tool === "pen" && color === c ? "border-slate-700" : "border-transparent"}`}
+            className={`h-12 w-12 rounded-full border-4 transition active:scale-95 ${tool === "pen" && color === c ? "border-slate-700" : "border-transparent"}`}
             style={{ backgroundColor: c }}
           />
         ))}
-        {["fine", "medium", "thick"].map((size) => (
+        {[
+          { size: "fine", dot: 8 },
+          { size: "medium", dot: 14 },
+          { size: "thick", dot: 20 },
+        ].map(({ size, dot }) => (
           <button
             key={size}
             type="button"
@@ -281,38 +301,43 @@ const Whiteboard = forwardRef(function Whiteboard(
               setTool("pen");
               setPenSize(size);
             }}
-            className={`rounded-full px-3 py-2 text-sm font-semibold capitalize ${tool === "pen" && penSize === size ? "bg-slate-700 text-white" : "bg-slate-200"}`}
+            className={`flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold capitalize transition active:scale-95 ${tool === "pen" && penSize === size ? "bg-slate-700 text-white" : "bg-slate-200"}`}
           >
+            <span
+              className="inline-block rounded-full bg-current"
+              style={{ width: dot, height: dot }}
+              aria-hidden="true"
+            />
             {size}
           </button>
         ))}
         <button
           type="button"
           onClick={() => setTool("eraser")}
-          className={`rounded-full px-4 py-2 text-sm font-semibold ${tool === "eraser" ? "bg-slate-700 text-white" : "bg-slate-200"}`}
+          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 ${tool === "eraser" ? "bg-slate-700 text-white" : "bg-slate-200"}`}
         >
-          Eraser
+          🧽 Eraser
         </button>
         <button
           type="button"
           onClick={undo}
-          className="rounded-full bg-amber-200 px-4 py-2 text-sm font-semibold"
+          className="rounded-full bg-amber-200 px-5 py-3 text-sm font-semibold transition active:scale-95"
         >
-          Undo
+          ↺ Undo
         </button>
         <button
           type="button"
           onClick={clearBoard}
-          className="rounded-full bg-rose-200 px-4 py-2 text-sm font-semibold"
+          className="rounded-full bg-rose-200 px-5 py-3 text-sm font-semibold transition active:scale-95"
         >
-          Clear
+          🗑 Clear
         </button>
         <button
           type="button"
           onClick={() => onFingerDrawChange(!fingerDraw)}
-          className={`rounded-full px-4 py-2 text-sm font-semibold ${fingerDraw ? "bg-emerald-300" : "bg-slate-200"}`}
+          className={`rounded-full px-5 py-3 text-sm font-semibold transition active:scale-95 ${fingerDraw ? "bg-emerald-300" : "bg-slate-200"}`}
         >
-          {fingerDraw ? "Finger draw: on" : "No pencil today?"}
+          {fingerDraw ? "👆 Finger draw: on" : "👆 No pencil today?"}
         </button>
       </div>
     </div>

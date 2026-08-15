@@ -16,13 +16,22 @@ test("parent can create a list and see it in the practice picker", async ({
   await expect(page.getByText("Week 12 Chinese")).toBeVisible();
 });
 
-test("selecting a list in practice mode reveals shuffle + start", async ({
+test("tapping a list in practice mode starts it directly, no intermediate step", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.evaluate(() => window.__storage.createList("Term 2 English"));
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Term 2 English");
+    const blob = new Blob(["audio"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "book",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+  });
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Term 2 English").click();
-  await expect(page.getByRole("button", { name: "Start!" })).toBeVisible();
-  await expect(page.getByLabel("Shuffle the words")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Play the word" }),
+  ).toBeVisible();
 });

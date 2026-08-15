@@ -21,7 +21,6 @@ test("a full 2-word list can be practised end to end", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Mini List").click();
-  await page.getByRole("button", { name: "Start!" }).click();
 
   await page.getByRole("button", { name: "Play the word" }).click();
   const canvas = page.locator("canvas");
@@ -112,7 +111,6 @@ test("no scoring or right/wrong language appears anywhere in the practice flow",
   await page.goto("/");
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Guard List").click();
-  await page.getByRole("button", { name: "Start!" }).click();
 
   const banned = /wrong|incorrect|failed|score|percent|%/i;
   const bodyText = await page.locator("body").innerText();

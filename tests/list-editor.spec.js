@@ -55,15 +55,19 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
   await page.getByRole("button", { name: "Manage Spelling Lists" }).click();
   await page.getByText("Test List").click();
 
-  await page.getByPlaceholder("Word, phrase, character, or pinyin (ni3 hao3)").fill("apple");
-  await page.getByRole("button", { name: "Record" }).click();
-  await page.getByRole("button", { name: "Stop recording" }).click();
+  await page
+    .getByPlaceholder("Word, phrase, character, or pinyin")
+    .fill("apple");
+  await page.getByRole("button", { name: "Your voice" }).click();
+  await page.getByRole("button", { name: "Stop" }).click();
   await page.getByRole("button", { name: "Add word" }).click();
   await expect(page.getByText("apple")).toBeVisible();
 
-  await page.getByPlaceholder("Word, phrase, character, or pinyin (ni3 hao3)").fill("banana");
-  await page.getByRole("button", { name: "Record" }).click();
-  await page.getByRole("button", { name: "Stop recording" }).click();
+  await page
+    .getByPlaceholder("Word, phrase, character, or pinyin")
+    .fill("banana");
+  await page.getByRole("button", { name: "Your voice" }).click();
+  await page.getByRole("button", { name: "Stop" }).click();
   await page.getByRole("button", { name: "Add word" }).click();
   await expect(page.getByText("banana")).toBeVisible();
 
@@ -96,5 +100,11 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
     .filter({ hasText: "apple" })
     .getByRole("button", { name: "Delete" })
     .click();
-  await expect(page.getByText("apple")).toHaveCount(0);
+  // Scoped to list items, not page.getByText: deleting now shows an undo
+  // toast ("Deleted "apple"") which would otherwise also match "apple" as
+  // a substring of the page's full text.
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "apple" }),
+  ).toHaveCount(0);
+  await expect(page.getByText('Deleted "apple"')).toBeVisible();
 });
