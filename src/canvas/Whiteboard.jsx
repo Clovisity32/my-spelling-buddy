@@ -128,6 +128,18 @@ const Whiteboard = forwardRef(function Whiteboard(
   }
 
   function onPointerDown(e) {
+    // Prune stale entries FIRST, before the palm-rejection check below reads
+    // the tracked-pointers map — otherwise a pen whose pointerup iPadOS
+    // swallowed leaves a stale "pen" entry that the rejection check's early
+    // return (below) stops us from ever reaching prunePointers() to clean
+    // up, since every subsequent touch pointerdown hits that same early
+    // return before this line. Left in the original order, that's a
+    // PERMANENT touch-draw lockout after any pencil session where a
+    // pointerup gets swallowed — exactly the scenario the "No pencil
+    // today?" finger-draw toggle exists to support.
+    const now = Date.now();
+    prunePointers(now);
+
     // Palm rejection: a touch pointer landing while a pen pointer is
     // tracked is presumed to be a resting palm, not a second intentional
     // finger, and is dropped without being tracked.
@@ -136,8 +148,6 @@ const Whiteboard = forwardRef(function Whiteboard(
         if (p.type === "pen") return;
       }
     }
-    const now = Date.now();
-    prunePointers(now);
     activePointersRef.current.set(e.pointerId, { t: now, type: e.pointerType });
 
     const isDrawable = e.pointerType !== "touch" || fingerDraw;
