@@ -9,6 +9,9 @@ export default function ListEditor({ listId, onNavigate }) {
   const [pendingAudio, setPendingAudio] = useState(null); // {blob,mime} or {useTts:true}
   const [recordError, setRecordError] = useState(null);
   const [playingWordId, setPlayingWordId] = useState(null);
+  const [ttsLang, setTtsLang] = useState("zh");
+  const [ttsVoiceURI, setTtsVoiceURI] = useState("");
+  const [chineseVoices, setChineseVoices] = useState([]);
   const recorderRef = useRef(null);
 
   async function refresh() {
@@ -19,6 +22,27 @@ export default function ListEditor({ listId, onNavigate }) {
   useEffect(() => {
     refresh();
   }, [listId]);
+
+  // Which Chinese voices actually exist is entirely up to the device —
+  // load whatever the browser reports (voice lists arrive asynchronously
+  // on first visit in most browsers) so a parent can audition them and
+  // pick whichever sounds closest to what they want, rather than the app
+  // guessing at an accent that may not be installed.
+  useEffect(() => {
+    function updateVoices() {
+      setChineseVoices(window.__audio.getChineseVoices());
+    }
+    updateVoices();
+    if (window.speechSynthesis) {
+      window.speechSynthesis.addEventListener("voiceschanged", updateVoices);
+      return () =>
+        window.speechSynthesis.removeEventListener(
+          "voiceschanged",
+          updateVoices,
+        );
+    }
+    return undefined;
+  }, []);
 
   // Give the mic back when the parent leaves this screen, rather than
   // holding the OS mic indicator on for the rest of the app session — the
@@ -54,8 +78,12 @@ export default function ListEditor({ listId, onNavigate }) {
   function useTtsForWord() {
     if (!text.trim()) return;
     setRecordError(null);
-    setPendingAudio({ useTts: true });
-    window.__audio.speakWord(text.trim());
+    setPendingAudio({
+      useTts: true,
+      ttsLang,
+      ttsVoiceURI: ttsVoiceURI || null,
+    });
+    window.__audio.speakWord(text.trim(), ttsLang, ttsVoiceURI || null);
   }
 
   async function addWord() {
@@ -65,6 +93,8 @@ export default function ListEditor({ listId, onNavigate }) {
       audioBlob: pendingAudio.useTts ? null : pendingAudio.blob,
       audioMime: pendingAudio.useTts ? null : pendingAudio.mime,
       useTts: !!pendingAudio.useTts,
+      ttsLang: pendingAudio.useTts ? pendingAudio.ttsLang : "zh",
+      ttsVoiceURI: pendingAudio.useTts ? pendingAudio.ttsVoiceURI : null,
     });
     setText("");
     setPendingAudio(null);
@@ -87,14 +117,21 @@ export default function ListEditor({ listId, onNavigate }) {
 
   function playPending() {
     if (!pendingAudio) return;
-    if (pendingAudio.useTts) window.__audio.speakWord(text.trim());
-    else window.__audio.playRecordedAudio(pendingAudio.blob);
+    if (pendingAudio.useTts) {
+      window.__audio.speakWord(
+        text.trim(),
+        pendingAudio.ttsLang,
+        pendingAudio.ttsVoiceURI,
+      );
+    } else {
+      window.__audio.playRecordedAudio(pendingAudio.blob);
+    }
   }
 
   function playWord(word) {
     setPlayingWordId(word.id);
     if (word.useTts) {
-      window.__audio.speakWord(word.text);
+      window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
       setTimeout(
         () => setPlayingWordId((id) => (id === word.id ? null : id)),
         1200,
@@ -147,6 +184,37 @@ export default function ListEditor({ listId, onNavigate }) {
         >
           {recordLabel}
         </button>
+        <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setTtsLang("zh")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "zh" ? "bg-white shadow" : "text-slate-500"}`}
+          >
+            中文
+          </button>
+          <button
+            type="button"
+            onClick={() => setTtsLang("en")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${ttsLang === "en" ? "bg-white shadow" : "text-slate-500"}`}
+          >
+            EN
+          </button>
+        </div>
+        {ttsLang === "zh" && chineseVoices.length > 1 && (
+          <select
+            value={ttsVoiceURI}
+            onChange={(e) => setTtsVoiceURI(e.target.value)}
+            className="rounded-xl border px-3 py-2 text-sm"
+            aria-label="Chinese voice"
+          >
+            <option value="">Best available</option>
+            {chineseVoices.map((v) => (
+              <option key={v.voiceURI} value={v.voiceURI}>
+                {v.name} ({v.lang})
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           onClick={useTtsForWord}

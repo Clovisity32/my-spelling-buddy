@@ -48,7 +48,8 @@ export default function Test({ listId, shuffle, onNavigate }) {
   const word = words[index];
 
   function playWord() {
-    if (word.useTts) window.__audio.speakWord(word.text);
+    if (word.useTts)
+      window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
     else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
   }
 

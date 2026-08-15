@@ -31,7 +31,14 @@ export async function renameList(listId, name) {
 
 export async function addWord(
   listId,
-  { text, audioBlob, audioMime, useTts = false },
+  {
+    text,
+    audioBlob,
+    audioMime,
+    useTts = false,
+    ttsLang = "zh",
+    ttsVoiceURI = null,
+  },
 ) {
   const word = {
     id: uid(),
@@ -40,6 +47,8 @@ export async function addWord(
     audioBlob,
     audioMime,
     useTts,
+    ttsLang,
+    ttsVoiceURI,
     createdAt: Date.now(),
   };
   await idb.put("words", word);

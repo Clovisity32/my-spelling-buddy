@@ -29,7 +29,8 @@ export default function Review({ listId, onNavigate }) {
   }
 
   function playAudio(word) {
-    if (word.useTts) window.__audio.speakWord(word.text);
+    if (word.useTts)
+      window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
     else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
   }
 
