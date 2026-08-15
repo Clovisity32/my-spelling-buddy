@@ -4,6 +4,11 @@ import StrokeReplay from "../canvas/StrokeReplay.jsx";
 export default function Review({ listId, onNavigate }) {
   const [list, setList] = useState(null);
   const [rows, setRows] = useState([]);
+  // Transient — drives the brief celebratory pop/pulse. Separate from the
+  // persisted "ticked" mark so marking many words in a row doesn't leave a
+  // page full of permanently-pulsing badges (the pulse used to be
+  // `animate-ping`'s default `infinite`, which never actually stopped).
+  const [justTickedId, setJustTickedId] = useState(null);
 
   async function refresh() {
     const l = await window.__storage.getList(listId);
@@ -22,9 +27,18 @@ export default function Review({ listId, onNavigate }) {
     refresh();
   }, [listId]);
 
-  async function tick(wordId) {
-    await window.__storage.setMark(listId, wordId, true);
-    await window.__audio.playHappyTick();
+  // Mark correct is a toggle: tapping an already-ticked word un-marks it,
+  // so a mis-tap doesn't require the full Redo round-trip to undo.
+  async function toggleTick(wordId, currentlyTicked) {
+    await window.__storage.setMark(listId, wordId, !currentlyTicked);
+    if (!currentlyTicked) {
+      window.__audio.playHappyTick();
+      setJustTickedId(wordId);
+      setTimeout(
+        () => setJustTickedId((id) => (id === wordId ? null : id)),
+        900,
+      );
+    }
     refresh();
   }
 
@@ -46,64 +60,90 @@ export default function Review({ listId, onNavigate }) {
 
   if (!list) return null;
 
+  const markedCount = rows.filter((r) => r.ticked).length;
+
   return (
     <div className="min-h-screen p-6">
-      <h2 className="mb-6 text-3xl font-bold text-slate-700">
-        Reviewing: {list.name}
-      </h2>
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-3xl font-bold text-slate-700">
+          Reviewing: {list.name}
+        </h2>
+        {rows.length > 0 && (
+          <p className="text-lg font-semibold text-slate-500">
+            {markedCount} of {rows.length} marked
+          </p>
+        )}
+      </div>
       <div className="flex flex-col gap-6">
-        {rows.map(({ word, strokes, ticked }) => (
-          <div
-            key={word.id}
-            className="relative rounded-2xl bg-white p-4 shadow"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-2xl font-semibold">{word.text}</span>
-              <button
-                type="button"
-                onClick={() => playAudio(word)}
-                className="rounded-lg bg-slate-200 px-4 py-2 transition active:scale-95"
-              >
-                Play
-              </button>
-            </div>
-            <StrokeReplay strokes={strokes} />
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => tick(word.id)}
-                className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95"
-              >
-                Mark correct
-              </button>
-              <button
-                type="button"
-                onClick={() => redo(word.id)}
-                title="Not correct — send back to hear it and write it again"
-                className="rounded-xl bg-amber-400 px-4 py-2 font-semibold text-white transition active:scale-95"
-              >
-                Redo
-              </button>
-            </div>
-            {ticked && (
-              <div
-                role="img"
-                aria-label="Marked correct"
-                className="pointer-events-none absolute -right-4 -top-4 sm:-right-6 sm:-top-6"
-              >
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <div className="tick-pop relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-5xl text-white shadow-xl sm:h-28 sm:w-28 sm:text-7xl">
-                  {"✓"}
-                </div>
+        {rows.map(({ word, strokes, ticked }) => {
+          const attempted = strokes.length > 0;
+          return (
+            <div
+              key={word.id}
+              className="relative rounded-2xl bg-white p-4 shadow"
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-2xl font-semibold">
+                  {word.text}
+                  {ticked && (
+                    <span
+                      role="img"
+                      aria-label="Marked correct"
+                      className={`text-emerald-500 ${justTickedId === word.id ? "tick-pop" : ""}`}
+                    >
+                      ✓
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => playAudio(word)}
+                  className="rounded-lg bg-slate-200 px-4 py-2 transition active:scale-95 hover:bg-slate-300"
+                >
+                  Play
+                </button>
               </div>
-            )}
-          </div>
-        ))}
+
+              {attempted ? (
+                <StrokeReplay strokes={strokes} />
+              ) : (
+                <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-slate-400">
+                  Not attempted yet
+                </p>
+              )}
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleTick(word.id, ticked)}
+                  disabled={!attempted}
+                  aria-pressed={ticked}
+                  className={`rounded-xl px-4 py-2 font-semibold text-white transition active:scale-95 disabled:opacity-40 ${
+                    ticked
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-emerald-500 hover:bg-emerald-600"
+                  }`}
+                >
+                  {ticked ? "✓ Correct" : "Mark correct"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => redo(word.id)}
+                  disabled={!attempted}
+                  title="Not correct — send back to hear it and write it again"
+                  className="rounded-xl bg-amber-400 px-4 py-2 font-semibold text-white transition active:scale-95 hover:bg-amber-500 disabled:opacity-40"
+                >
+                  Redo
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <button
         type="button"
         onClick={() => onNavigate("lists", { mode: "review" })}
-        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95"
+        className="mt-8 rounded-2xl bg-slate-200 px-6 py-3 text-lg font-semibold text-slate-600 transition active:scale-95 hover:bg-slate-300"
       >
         Back to lists
       </button>

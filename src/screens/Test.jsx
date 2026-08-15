@@ -24,7 +24,14 @@ export default function Test({
   const [words, setWords] = useState(null);
   const [index, setIndex] = useState(0);
   const [praise, setPraise] = useState(null);
-  const [fingerDraw, setFingerDraw] = useState(false);
+  // Most devices (Android, laptops, any iPad without a Pencil to hand) have
+  // no stylus at all, so a finger must be able to draw by default — palm
+  // rejection already suppresses stray touches while a pen is actively
+  // tracked, so Pencil users lose nothing. Defaulting this off (as it
+  // originally was) meant a child's finger did nothing at all on first run
+  // on any non-Pencil device, with the only escape being a text button she
+  // can't read.
+  const [fingerDraw, setFingerDraw] = useState(true);
   const wbRef = useRef(null);
 
   useEffect(() => {
@@ -85,7 +92,7 @@ export default function Test({
   }
 
   return (
-    <div className="flex min-h-screen flex-col p-4">
+    <div className="flex h-screen flex-col overflow-hidden p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         {words.length > 1 ? (
           <p className="text-lg font-semibold text-slate-500">
