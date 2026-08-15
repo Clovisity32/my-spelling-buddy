@@ -4,6 +4,7 @@ import StrokeReplay from "./canvas/StrokeReplay.jsx";
 import Home from "./screens/Home.jsx";
 import ParentMenu from "./screens/ParentMenu.jsx";
 import Lists from "./screens/Lists.jsx";
+import ListEditor from "./screens/ListEditor.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -42,6 +43,9 @@ export default function App() {
       {screen === "home" && <Home onNavigate={navigate} />}
       {screen === "parentMenu" && <ParentMenu onNavigate={navigate} />}
       {screen === "lists" && <Lists mode={params.mode} onNavigate={navigate} />}
+      {screen === "editor" && (
+        <ListEditor listId={params.listId} onNavigate={navigate} />
+      )}
     </div>
   );
 }
