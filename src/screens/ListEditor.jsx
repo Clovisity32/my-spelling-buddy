@@ -6,6 +6,7 @@ export default function ListEditor({ listId, onNavigate }) {
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [pendingAudio, setPendingAudio] = useState(null);
+  const [recordError, setRecordError] = useState(null);
   const recorderRef = useRef(null);
 
   async function refresh() {
@@ -19,8 +20,15 @@ export default function ListEditor({ listId, onNavigate }) {
 
   async function toggleRecord() {
     if (!recording) {
-      recorderRef.current = await window.__audio.startRecording();
-      setRecording(true);
+      setRecordError(null);
+      try {
+        recorderRef.current = await window.__audio.startRecording();
+        setRecording(true);
+      } catch {
+        setRecordError(
+          "Couldn't access the microphone. Check your browser's microphone permission and try again.",
+        );
+      }
     } else {
       const { blob, mime } = await recorderRef.current.stop();
       setPendingAudio({ blob, mime });
@@ -84,6 +92,7 @@ export default function ListEditor({ listId, onNavigate }) {
         >
           {recording ? "Stop recording" : "Record"}
         </button>
+        {recordError && <p className="text-sm text-rose-600">{recordError}</p>}
         {pendingAudio && (
           <button
             type="button"

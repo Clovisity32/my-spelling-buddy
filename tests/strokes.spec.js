@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("paintStroke draws a line and destination-out erases it back to white", async ({
+test("paintStroke draws a line and the eraser restores it to white", async ({
   page,
 }) => {
   await page.goto("/");

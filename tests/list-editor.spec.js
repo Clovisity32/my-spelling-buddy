@@ -84,6 +84,13 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
   );
   expect(words.map((w) => w.text)).toEqual(["banana", "apple"]);
 
+  const listItemTexts = await page.getByRole("listitem").allInnerTexts();
+  const bananaIndex = listItemTexts.findIndex((t) => t.includes("banana"));
+  const appleIndex = listItemTexts.findIndex((t) => t.includes("apple"));
+  expect(bananaIndex).toBeGreaterThanOrEqual(0);
+  expect(appleIndex).toBeGreaterThanOrEqual(0);
+  expect(bananaIndex).toBeLessThan(appleIndex);
+
   await page
     .getByRole("listitem")
     .filter({ hasText: "apple" })

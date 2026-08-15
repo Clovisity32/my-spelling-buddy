@@ -4,8 +4,8 @@
 // space — ported approach from My Lesson Buddy's WhiteboardCanvas.jsx, see
 // docs/superpowers/specs/2026-08-15-spelling-buddy-design.md. Zoom/pan and
 // board-image compositing are deliberately not ported (unneeded here),
-// which is why this file needs no offscreen scratch canvas: a plain
-// destination-out stroke painted directly, after the white fill, is enough.
+// which is why this file needs no offscreen scratch canvas: painting the
+// eraser stroke as opaque white, directly over the white fill, is enough.
 export const CANVAS_W = 1000;
 export const CANVAS_H = 500;
 export const PEN_SIZES = { fine: 3, medium: 6, thick: 10 };

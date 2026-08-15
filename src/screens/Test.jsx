@@ -29,9 +29,18 @@ export default function Test({ listId, shuffle, onNavigate }) {
   if (words.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-center">
-        <p className="text-xl">
-          This list has no words yet — ask a parent to add some!
-        </p>
+        <div className="flex flex-col items-center">
+          <p className="text-xl">
+            This list has no words yet — ask a parent to add some!
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate("home")}
+            className="mt-4 rounded-xl bg-slate-300 px-6 py-3 font-semibold text-slate-700"
+          >
+            Home
+          </button>
+        </div>
       </div>
     );
   }
@@ -61,15 +70,24 @@ export default function Test({ listId, shuffle, onNavigate }) {
 
   return (
     <div className="flex min-h-screen flex-col p-4">
-      <div className="mb-3 flex items-center gap-2">
-        {words.map((_, i) => (
-          <span
-            key={i}
-            className={`text-2xl ${i <= index ? "text-amber-400" : "text-slate-200"}`}
-          >
-            {"★"}
-          </span>
-        ))}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {words.map((_, i) => (
+            <span
+              key={i}
+              className={`text-2xl ${i <= index ? "text-amber-400" : "text-slate-200"}`}
+            >
+              {"★"}
+            </span>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate("home")}
+          className="text-sm text-slate-400 underline"
+        >
+          Home
+        </button>
       </div>
 
       <button

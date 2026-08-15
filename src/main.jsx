@@ -12,7 +12,7 @@ if (typeof window !== "undefined") {
   window.__storage = storage;
   window.__audio = { ...audioContext, ...sounds, ...recorder };
   window.__canvas = strokes;
-  window.addEventListener("pointerdown", () => audioContext.primeAudio(), {
+  window.addEventListener("pointerup", () => audioContext.primeAudio(), {
     once: true,
   });
 }

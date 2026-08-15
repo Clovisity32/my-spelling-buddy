@@ -34,6 +34,7 @@ const Whiteboard = forwardRef(function Whiteboard(
   );
   const scaleRef = useRef(1);
   const drawingRef = useRef(false);
+  const drawingPointerIdRef = useRef(null);
   const lastPointRef = useRef(null);
   const pendingResizeRef = useRef(false);
   const activePointersRef = useRef(new Map());
@@ -173,12 +174,14 @@ const Whiteboard = forwardRef(function Whiteboard(
     strokesRef.current.push(stroke);
     setStrokeCount(strokesRef.current.length);
     drawingRef.current = true;
+    drawingPointerIdRef.current = e.pointerId;
     lastPointRef.current = [x, y];
     fullRepaint();
   }
 
   function onPointerMove(e) {
     if (!drawingRef.current) return;
+    if (e.pointerId !== drawingPointerIdRef.current) return;
     const [x, y] = toLogical(e.clientX, e.clientY);
     const [lx, ly] = lastPointRef.current;
     if (Math.hypot(x - lx, y - ly) < DECIMATE_MIN_DIST) return;
@@ -211,7 +214,9 @@ const Whiteboard = forwardRef(function Whiteboard(
   function onPointerUp(e) {
     activePointersRef.current.delete(e.pointerId);
     if (!drawingRef.current) return;
+    if (e.pointerId !== drawingPointerIdRef.current) return;
     drawingRef.current = false;
+    drawingPointerIdRef.current = null;
     lastPointRef.current = null;
     if (pendingResizeRef.current) {
       pendingResizeRef.current = false;

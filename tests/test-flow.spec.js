@@ -121,4 +121,11 @@ test("no scoring or right/wrong language appears anywhere in the practice flow",
   await page.getByRole("button", { name: "Save" }).click();
   const afterSave = await page.locator("body").innerText();
   expect(afterSave).not.toMatch(banned);
+
+  await page.getByRole("button", { name: "Next word" }).click();
+  await expect(
+    page.getByText("You finished the whole list, Chloe!"),
+  ).toBeVisible();
+  const celebrationText = await page.locator("body").innerText();
+  expect(celebrationText).not.toMatch(banned);
 });
