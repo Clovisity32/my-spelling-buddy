@@ -5,6 +5,8 @@ import Home from "./screens/Home.jsx";
 import ParentMenu from "./screens/ParentMenu.jsx";
 import Lists from "./screens/Lists.jsx";
 import ListEditor from "./screens/ListEditor.jsx";
+import Test from "./screens/Test.jsx";
+import Celebration from "./screens/Celebration.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -45,6 +47,16 @@ export default function App() {
       {screen === "lists" && <Lists mode={params.mode} onNavigate={navigate} />}
       {screen === "editor" && (
         <ListEditor listId={params.listId} onNavigate={navigate} />
+      )}
+      {screen === "test" && (
+        <Test
+          listId={params.listId}
+          shuffle={params.shuffle}
+          onNavigate={navigate}
+        />
+      )}
+      {screen === "celebration" && (
+        <Celebration listId={params.listId} onNavigate={navigate} />
       )}
     </div>
   );
