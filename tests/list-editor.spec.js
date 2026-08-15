@@ -55,13 +55,13 @@ test("parent adds, reorders, and deletes a word", async ({ page }) => {
   await page.getByRole("button", { name: "Manage Spelling Lists" }).click();
   await page.getByText("Test List").click();
 
-  await page.getByPlaceholder("Word, phrase, or character").fill("apple");
+  await page.getByPlaceholder("Word, phrase, character, or pinyin (ni3 hao3)").fill("apple");
   await page.getByRole("button", { name: "Record" }).click();
   await page.getByRole("button", { name: "Stop recording" }).click();
   await page.getByRole("button", { name: "Add word" }).click();
   await expect(page.getByText("apple")).toBeVisible();
 
-  await page.getByPlaceholder("Word, phrase, or character").fill("banana");
+  await page.getByPlaceholder("Word, phrase, character, or pinyin (ni3 hao3)").fill("banana");
   await page.getByRole("button", { name: "Record" }).click();
   await page.getByRole("button", { name: "Stop recording" }).click();
   await page.getByRole("button", { name: "Add word" }).click();

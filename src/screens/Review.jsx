@@ -30,7 +30,7 @@ export default function Review({ listId, onNavigate }) {
 
   function playAudio(word) {
     if (!word.audioBlob) return;
-    new Audio(URL.createObjectURL(word.audioBlob)).play().catch(() => {});
+    window.__audio.playRecordedAudio(word.audioBlob);
   }
 
   if (!list) return null;
@@ -65,13 +65,16 @@ export default function Review({ listId, onNavigate }) {
               Mark correct
             </button>
             {ticked && (
-              <span
+              <div
                 role="img"
                 aria-label="Marked correct"
-                className="pointer-events-none absolute right-6 top-6 text-6xl text-emerald-500"
+                className="pointer-events-none absolute right-4 top-4 sm:right-6 sm:top-6"
               >
-                {"✓"}
-              </span>
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <div className="tick-pop relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-5xl text-white shadow-xl sm:h-28 sm:w-28 sm:text-7xl">
+                  {"✓"}
+                </div>
+              </div>
             )}
           </div>
         ))}

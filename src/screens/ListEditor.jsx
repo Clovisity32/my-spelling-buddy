@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toneNumbersToMarks } from "../pinyin.js";
 
 export default function ListEditor({ listId, onNavigate }) {
   const [list, setList] = useState(null);
@@ -64,12 +65,12 @@ export default function ListEditor({ listId, onNavigate }) {
 
   function playPending() {
     if (!pendingAudio) return;
-    new Audio(URL.createObjectURL(pendingAudio.blob)).play().catch(() => {});
+    window.__audio.playRecordedAudio(pendingAudio.blob);
   }
 
   function playWord(word) {
     if (!word.audioBlob) return;
-    new Audio(URL.createObjectURL(word.audioBlob)).play().catch(() => {});
+    window.__audio.playRecordedAudio(word.audioBlob);
   }
 
   if (!list) return null;
@@ -82,9 +83,18 @@ export default function ListEditor({ listId, onNavigate }) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Word, phrase, or character"
+          placeholder="Word, phrase, character, or pinyin (ni3 hao3)"
           className="rounded-xl border px-4 py-2"
         />
+        <button
+          type="button"
+          onClick={() => setText(toneNumbersToMarks(text))}
+          disabled={!text.trim()}
+          title="Type pinyin with tone numbers (ni3 hao3), then tap this to convert to tone marks (nǐ hǎo)"
+          className="rounded-xl bg-slate-200 px-4 py-2 font-semibold disabled:opacity-40"
+        >
+          1→ā tone marks
+        </button>
         <button
           type="button"
           onClick={toggleRecord}

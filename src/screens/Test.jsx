@@ -49,7 +49,7 @@ export default function Test({ listId, shuffle, onNavigate }) {
 
   function playWord() {
     if (!word.audioBlob) return;
-    new Audio(URL.createObjectURL(word.audioBlob)).play().catch(() => {});
+    window.__audio.playRecordedAudio(word.audioBlob);
   }
 
   async function save() {
@@ -71,16 +71,9 @@ export default function Test({ listId, shuffle, onNavigate }) {
   return (
     <div className="flex min-h-screen flex-col p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {words.map((_, i) => (
-            <span
-              key={i}
-              className={`text-2xl ${i <= index ? "text-amber-400" : "text-slate-200"}`}
-            >
-              {"★"}
-            </span>
-          ))}
-        </div>
+        <p className="text-lg font-semibold text-slate-500">
+          Word {index + 1} of {words.length}
+        </p>
         <button
           type="button"
           onClick={() => onNavigate("home")}
@@ -88,6 +81,30 @@ export default function Test({ listId, shuffle, onNavigate }) {
         >
           Home
         </button>
+      </div>
+
+      <div className="mx-auto mb-3 h-4 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500"
+          style={{ width: `${(index / words.length) * 100}%` }}
+        />
+      </div>
+
+      <div className="mb-4 flex items-center justify-center gap-2">
+        {words.map((_, i) => (
+          <span
+            key={i}
+            className={`transition-all duration-300 ${
+              i < index
+                ? "text-4xl text-amber-400"
+                : i === index
+                  ? "text-5xl text-amber-300 drop-shadow"
+                  : "text-3xl text-slate-200"
+            }`}
+          >
+            {"★"}
+          </span>
+        ))}
       </div>
 
       <button

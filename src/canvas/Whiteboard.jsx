@@ -247,7 +247,7 @@ const Whiteboard = forwardRef(function Whiteboard(
     <div className="flex h-full w-full flex-col gap-2">
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 rounded-2xl bg-white shadow-inner"
+        className="flex min-h-0 flex-1 items-center justify-center rounded-2xl bg-white shadow-inner"
         data-stroke-count={strokeCount}
       >
         <canvas
