@@ -2674,6 +2674,31 @@ test("a full 2-word list can be practised end to end", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Next word" })).toBeVisible();
   await page.getByRole("button", { name: "Next word" }).click();
 
+  // word 2 gets a fresh blank board (remounted via key={word.id}) — draw on
+  // it too, since the attempts assertion below requires every saved attempt
+  // to be non-empty.
+  await canvas.dispatchEvent("pointerdown", {
+    pointerId: 2,
+    pointerType: "mouse",
+    clientX: box.x + 10,
+    clientY: box.y + 10,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 2,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 2,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("button", { name: "Next word" }).click();
 
