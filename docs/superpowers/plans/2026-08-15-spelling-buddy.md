@@ -2273,7 +2273,16 @@ async function mockRecorder(page) {
       }
     }
     window.MediaRecorder = FakeMediaRecorder;
-    navigator.mediaDevices = { getUserMedia: async () => new FakeStream() };
+    // navigator.mediaDevices is a getter-only accessor property in real
+    // browsers — a plain assignment silently no-ops in the sloppy-mode
+    // script addInitScript injects, leaving the real (unmocked) property in
+    // place. Task 3 hit this same bug; reconfiguring the property descriptor
+    // is the fix (see src/audio/... test in tests/audio.spec.js).
+    Object.defineProperty(navigator, "mediaDevices", {
+      writable: true,
+      configurable: true,
+      value: { getUserMedia: async () => new FakeStream() },
+    });
   });
 }
 
