@@ -7,6 +7,7 @@ import Lists from "./screens/Lists.jsx";
 import ListEditor from "./screens/ListEditor.jsx";
 import Test from "./screens/Test.jsx";
 import Celebration from "./screens/Celebration.jsx";
+import Review from "./screens/Review.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -57,6 +58,9 @@ export default function App() {
       )}
       {screen === "celebration" && (
         <Celebration listId={params.listId} onNavigate={navigate} />
+      )}
+      {screen === "review" && (
+        <Review listId={params.listId} onNavigate={navigate} />
       )}
     </div>
   );
