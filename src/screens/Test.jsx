@@ -11,7 +11,16 @@ function shuffleArray(arr) {
   return a;
 }
 
-export default function Test({ listId, shuffle, onNavigate }) {
+// wordId + returnTo turn this into a single-word redo: Review sends a
+// parent here to have Chloe redo just one word, then bounces straight
+// back to Review instead of ending the whole list at Celebration.
+export default function Test({
+  listId,
+  shuffle,
+  wordId,
+  returnTo,
+  onNavigate,
+}) {
   const [words, setWords] = useState(null);
   const [index, setIndex] = useState(0);
   const [praise, setPraise] = useState(null);
@@ -21,9 +30,10 @@ export default function Test({ listId, shuffle, onNavigate }) {
   useEffect(() => {
     (async () => {
       const loaded = await window.__storage.getWords(listId);
-      setWords(shuffle ? shuffleArray(loaded) : loaded);
+      const scoped = wordId ? loaded.filter((w) => w.id === wordId) : loaded;
+      setWords(shuffle ? shuffleArray(scoped) : scoped);
     })();
-  }, [listId, shuffle]);
+  }, [listId, shuffle, wordId]);
 
   if (!words) return null;
   if (words.length === 0) {
@@ -31,14 +41,18 @@ export default function Test({ listId, shuffle, onNavigate }) {
       <div className="flex min-h-screen items-center justify-center p-6 text-center">
         <div className="flex flex-col items-center">
           <p className="text-xl">
-            This list has no words yet — ask a parent to add some!
+            {wordId
+              ? "That word isn't there anymore."
+              : "This list has no words yet — ask a parent to add some!"}
           </p>
           <button
             type="button"
-            onClick={() => onNavigate("home")}
+            onClick={() =>
+              returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+            }
             className="mt-4 rounded-xl bg-slate-300 px-6 py-3 font-semibold text-slate-700"
           >
-            Home
+            {returnTo ? "Back" : "Home"}
           </button>
         </div>
       </div>
@@ -46,6 +60,7 @@ export default function Test({ listId, shuffle, onNavigate }) {
   }
 
   const word = words[index];
+  const isLast = index + 1 >= words.length;
 
   function playWord() {
     if (word.useTts)
@@ -62,8 +77,8 @@ export default function Test({ listId, shuffle, onNavigate }) {
 
   function next() {
     setPraise(null);
-    if (index + 1 >= words.length) {
-      onNavigate("celebration", { listId });
+    if (isLast) {
+      onNavigate(returnTo || "celebration", { listId });
     } else {
       setIndex(index + 1);
     }
@@ -72,41 +87,53 @@ export default function Test({ listId, shuffle, onNavigate }) {
   return (
     <div className="flex min-h-screen flex-col p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-lg font-semibold text-slate-500">
-          Word {index + 1} of {words.length}
-        </p>
+        {words.length > 1 ? (
+          <p className="text-lg font-semibold text-slate-500">
+            Word {index + 1} of {words.length}
+          </p>
+        ) : (
+          <p className="text-lg font-semibold text-slate-500">
+            {returnTo ? "Have another try" : "Word 1 of 1"}
+          </p>
+        )}
         <button
           type="button"
-          onClick={() => onNavigate("home")}
+          onClick={() =>
+            returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+          }
           className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition active:scale-95"
         >
-          Home
+          {returnTo ? "Back" : "Home"}
         </button>
       </div>
 
-      <div className="mx-auto mb-3 h-4 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500"
-          style={{ width: `${(index / words.length) * 100}%` }}
-        />
-      </div>
+      {words.length > 1 && (
+        <>
+          <div className="mx-auto mb-3 h-4 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500"
+              style={{ width: `${(index / words.length) * 100}%` }}
+            />
+          </div>
 
-      <div className="mb-4 flex items-center justify-center gap-2">
-        {words.map((_, i) => (
-          <span
-            key={i}
-            className={`transition-all duration-300 ${
-              i < index
-                ? "text-4xl text-amber-400"
-                : i === index
-                  ? "text-5xl text-amber-300 drop-shadow"
-                  : "text-3xl text-slate-200"
-            }`}
-          >
-            {"★"}
-          </span>
-        ))}
-      </div>
+          <div className="mb-4 flex items-center justify-center gap-2">
+            {words.map((_, i) => (
+              <span
+                key={i}
+                className={`transition-all duration-300 ${
+                  i < index
+                    ? "text-4xl text-amber-400"
+                    : i === index
+                      ? "text-5xl text-amber-300 drop-shadow"
+                      : "text-3xl text-slate-200"
+                }`}
+              >
+                {"★"}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
 
       <button
         type="button"
@@ -142,7 +169,7 @@ export default function Test({ listId, shuffle, onNavigate }) {
             onClick={next}
             className="rounded-2xl bg-emerald-500 px-8 py-4 text-xl font-bold text-white"
           >
-            Next word
+            {isLast && returnTo ? "Done — back to review" : "Next word"}
           </button>
         </div>
       )}

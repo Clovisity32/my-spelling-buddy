@@ -28,6 +28,16 @@ export default function Review({ listId, onNavigate }) {
     refresh();
   }
 
+  // Not correct — clear any existing mark (the attempt about to be redone
+  // makes the old mark stale either way) and send the student back to the
+  // usual practice screen for just this one word. Test.jsx returns here
+  // (rather than to Celebration) once they've heard it, written it again,
+  // and saved.
+  async function redo(wordId) {
+    await window.__storage.setMark(listId, wordId, false);
+    onNavigate("test", { listId, wordId, returnTo: "review" });
+  }
+
   function playAudio(word) {
     if (word.useTts)
       window.__audio.speakWord(word.text, word.ttsLang, word.ttsVoiceURI);
@@ -58,13 +68,23 @@ export default function Review({ listId, onNavigate }) {
               </button>
             </div>
             <StrokeReplay strokes={strokes} />
-            <button
-              type="button"
-              onClick={() => tick(word.id)}
-              className="mt-3 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95"
-            >
-              Mark correct
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => tick(word.id)}
+                className="rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition active:scale-95"
+              >
+                Mark correct
+              </button>
+              <button
+                type="button"
+                onClick={() => redo(word.id)}
+                title="Not correct — send back to hear it and write it again"
+                className="rounded-xl bg-amber-400 px-4 py-2 font-semibold text-white transition active:scale-95"
+              >
+                Redo
+              </button>
+            </div>
             {ticked && (
               <div
                 role="img"

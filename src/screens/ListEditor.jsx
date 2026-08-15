@@ -200,20 +200,29 @@ export default function ListEditor({ listId, onNavigate }) {
             EN
           </button>
         </div>
-        {ttsLang === "zh" && chineseVoices.length > 1 && (
-          <select
-            value={ttsVoiceURI}
-            onChange={(e) => setTtsVoiceURI(e.target.value)}
-            className="rounded-xl border px-3 py-2 text-sm"
-            aria-label="Chinese voice"
-          >
-            <option value="">Best available</option>
-            {chineseVoices.map((v) => (
-              <option key={v.voiceURI} value={v.voiceURI}>
-                {v.name} ({v.lang})
-              </option>
-            ))}
-          </select>
+        {ttsLang === "zh" && chineseVoices.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <select
+              value={ttsVoiceURI}
+              onChange={(e) => setTtsVoiceURI(e.target.value)}
+              className="rounded-xl border px-3 py-2 text-sm"
+              aria-label="Chinese voice"
+            >
+              <option value="">Best available</option>
+              {chineseVoices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.name} ({v.lang}){v.localService ? "" : " — needs download"}
+                </option>
+              ))}
+            </select>
+            {chineseVoices.some((v) => !v.localService) && (
+              <p className="max-w-xs text-xs text-amber-600">
+                Voices marked "needs download" often silently play in a
+                different voice until downloaded: iPad Settings → Accessibility
+                → Spoken Content → Voices → Chinese.
+              </p>
+            )}
+          </div>
         )}
         <button
           type="button"

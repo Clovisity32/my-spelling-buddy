@@ -53,6 +53,8 @@ export default function App() {
         <Test
           listId={params.listId}
           shuffle={params.shuffle}
+          wordId={params.wordId}
+          returnTo={params.returnTo}
           onNavigate={navigate}
         />
       )}
