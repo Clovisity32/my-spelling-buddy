@@ -7,11 +7,23 @@ export default function ParentMenu({ onNavigate }) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [backupMessage, setBackupMessage] = useState(null);
+  const [stickersEnabled, setStickersEnabledState] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     (async () => setChildName(await window.__storage.getChildName()))();
+    (async () =>
+      setStickersEnabledState(await window.__storage.getStickersEnabled()))();
   }, []);
+
+  async function toggleStickers() {
+    const next = !stickersEnabled;
+    // Update the checkbox first, persist after — otherwise the checkbox
+    // stays at its old (React-controlled) state for the length of the
+    // IndexedDB write and visibly flickers back before catching up.
+    setStickersEnabledState(next);
+    await window.__storage.setStickersEnabled(next);
+  }
 
   async function saveName() {
     if (!nameDraft.trim()) return;
@@ -93,6 +105,24 @@ export default function ParentMenu({ onNavigate }) {
               </button>
             </div>
           )}
+        </div>
+
+        <div className="card w-full max-w-sm">
+          <label className="flex cursor-pointer items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-semibold text-slate-800">
+                Sticker rewards
+              </span>
+              <span className="block text-xs text-slate-400">
+                Off for now — turn on to show the sticker collection.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={stickersEnabled}
+              onChange={toggleStickers}
+            />
+          </label>
         </div>
 
         <button

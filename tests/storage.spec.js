@@ -416,3 +416,91 @@ test("upgrading a v1-shaped database (listId:wordId keys, boolean marks) preserv
   expect(result.mark).toBe("gotIt");
   expect(result.wordCount).toBe(1);
 });
+
+test("an abandoned (never-completed) session is not counted as a practice, but a finished one is", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const out = await page.evaluate(async () => {
+    const list = await window.__storage.createList("Abandon Check");
+
+    // Started but never finished — e.g. she backed out partway through.
+    await window.__storage.startSession(list.id);
+    const afterAbandoned = {
+      completedSessions: (await window.__storage.getCompletedSessions(list.id))
+        .length,
+      totalCompletedGlobal:
+        await window.__storage.getTotalCompletedSessionCount(),
+    };
+
+    const finished = await window.__storage.startSession(list.id);
+    await window.__storage.completeSession(finished.id);
+    const afterFinished = {
+      completedSessions: (await window.__storage.getCompletedSessions(list.id))
+        .length,
+      totalCompletedGlobal:
+        await window.__storage.getTotalCompletedSessionCount(),
+      rawSessionCount: (await window.__storage.getSessions(list.id)).length,
+    };
+
+    return { afterAbandoned, afterFinished };
+  });
+
+  expect(out.afterAbandoned.completedSessions).toBe(0);
+  expect(out.afterFinished.completedSessions).toBe(1);
+  // Both sessions (abandoned + finished) exist in storage — only the
+  // completed one counts toward anything shown to a parent or child.
+  expect(out.afterFinished.rawSessionCount).toBe(2);
+  expect(
+    out.afterFinished.totalCompletedGlobal -
+      out.afterAbandoned.totalCompletedGlobal,
+  ).toBe(1);
+});
+
+test("deleteSession removes just that one session's attempts and marks, leaving the rest of the list's history intact", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const out = await page.evaluate(async () => {
+    const list = await window.__storage.createList("Prune One Session");
+    const word = await window.__storage.addWord(list.id, {
+      text: "leaf",
+      audioBlob: null,
+      audioMime: null,
+    });
+
+    const s1 = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(s1.id, word.id, [
+      { id: "s1", tool: "pen", color: "#000", width: 4, points: [1, 1, 5, 5] },
+    ]);
+    await window.__storage.setMark(s1.id, word.id, "gotIt");
+    await window.__storage.completeSession(s1.id);
+
+    const s2 = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(s2.id, word.id, [
+      { id: "s2", tool: "pen", color: "#000", width: 4, points: [2, 2, 6, 6] },
+    ]);
+    await window.__storage.completeSession(s2.id);
+
+    await window.__storage.deleteSession(s1.id);
+
+    const sessions = await window.__storage.getSessions(list.id);
+    const attempt1 = await window.__storage.getAttempt(s1.id, word.id);
+    const marks1 = await window.__storage.getMarksForSession(s1.id);
+    const attempt2 = await window.__storage.getAttempt(s2.id, word.id);
+    return {
+      remainingSessionIds: sessions.map((s) => s.id),
+      deletedId: s1.id,
+      keptId: s2.id,
+      attempt1,
+      markCount1: Object.keys(marks1).length,
+      attempt2,
+    };
+  });
+
+  expect(out.remainingSessionIds).toEqual([out.keptId]);
+  expect(out.remainingSessionIds).not.toContain(out.deletedId);
+  expect(out.attempt1).toBeNull();
+  expect(out.markCount1).toBe(0);
+  expect(out.attempt2[0].id).toBe("s2");
+});

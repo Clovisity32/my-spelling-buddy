@@ -4,6 +4,7 @@ import Screen from "../components/Screen.jsx";
 export default function Home({ onNavigate }) {
   const [latestList, setLatestList] = useState(null);
   const [latestWords, setLatestWords] = useState([]);
+  const [stickersEnabled, setStickersEnabled] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -12,6 +13,8 @@ export default function Home({ onNavigate }) {
       setLatestList(lists[0]);
       setLatestWords(await window.__storage.getWords(lists[0].id));
     })();
+    (async () =>
+      setStickersEnabled(await window.__storage.getStickersEnabled()))();
   }, []);
 
   function playWord(word) {
@@ -63,13 +66,15 @@ export default function Home({ onNavigate }) {
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onNavigate("stickers")}
-        className="btn btn-secondary btn-sm"
-      >
-        🎖️ My Stickers
-      </button>
+      {stickersEnabled && (
+        <button
+          type="button"
+          onClick={() => onNavigate("stickers")}
+          className="btn btn-secondary btn-sm"
+        >
+          🎖️ My Stickers
+        </button>
+      )}
     </Screen>
   );
 }

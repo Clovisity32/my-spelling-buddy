@@ -27,10 +27,12 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
       setWordCount(words.length);
       setChildName(await window.__storage.getChildName());
       setStreak(await window.__storage.getPracticeStreak());
-      const sessions = await window.__storage.getSessions(listId);
+      const sessions = await window.__storage.getCompletedSessions(listId);
       setPracticeNumber(sessions.length);
-      const total = await window.__storage.getTotalCompletedSessionCount();
-      setNewSticker(getJustEarnedSticker(total));
+      if (await window.__storage.getStickersEnabled()) {
+        const total = await window.__storage.getTotalCompletedSessionCount();
+        setNewSticker(getJustEarnedSticker(total));
+      }
     })();
   }, [listId, sessionId]);
 

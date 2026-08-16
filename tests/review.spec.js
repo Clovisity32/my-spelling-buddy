@@ -123,3 +123,54 @@ test("parent can send a word back for 'not yet', and it returns to review in the
   expect(after.strokes.length).toBeGreaterThan(0);
   await expect(page.getByRole("img", { name: "You got it!" })).toHaveCount(0);
 });
+
+test("parent can delete a practice session from its history, with an undo window", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Prune List");
+    const word = await window.__storage.addWord(list.id, {
+      text: "leaf",
+      audioBlob: null,
+      audioMime: null,
+    });
+    const session = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(session.id, word.id, [
+      { id: "s1", tool: "pen", color: "#000", width: 4, points: [1, 1, 5, 5] },
+    ]);
+    await window.__storage.completeSession(session.id);
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Parents" }).click();
+  await page.getByRole("button", { name: "Review Chloe's Work" }).click();
+  await page.getByText("Prune List").click();
+
+  await expect(page.getByRole("button", { name: /got it/ })).toBeVisible();
+  await page.getByRole("button", { name: "Delete" }).click();
+
+  await expect(page.getByRole("button", { name: /got it/ })).toHaveCount(0);
+  await expect(page.getByText(/^Deleted the/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByRole("button", { name: /got it/ })).toBeVisible();
+});
+
+test("an abandoned session doesn't count as a practice on the Lists tile", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Abandoned Tile List");
+    // Started but never finished.
+    await window.__storage.startSession(list.id);
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Parents" }).click();
+  await page.getByRole("button", { name: "Review Chloe's Work" }).click();
+
+  await expect(page.getByText("not practised yet")).toBeVisible();
+  await expect(page.getByText(/practised \d+ times?/)).toHaveCount(0);
+});

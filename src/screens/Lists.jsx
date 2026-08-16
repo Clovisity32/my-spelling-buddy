@@ -14,7 +14,7 @@ export default function Lists({ mode, onNavigate }) {
     if (mode === "review") {
       const summary = {};
       for (const list of loaded) {
-        const sessions = await window.__storage.getSessions(list.id);
+        const sessions = await window.__storage.getCompletedSessions(list.id);
         summary[list.id] = { count: sessions.length };
       }
       setSessionSummary(summary);

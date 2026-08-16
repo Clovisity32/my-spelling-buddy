@@ -50,7 +50,10 @@ export async function closeDB() {
   await idb.closeDB();
 }
 
-async function deleteSession(sessionId) {
+// Also used directly by SessionHistory to let a parent delete a single
+// practice session (with its attempts and marks) without touching the rest
+// of the list's history.
+export async function deleteSession(sessionId) {
   const attempts = await idb.getAllByIndex("attempts", "sessionId", sessionId);
   for (const a of attempts) await idb.del("attempts", a.id);
   const marks = await idb.getAllByIndex("marks", "sessionId", sessionId);
@@ -184,10 +187,21 @@ export async function getLatestSession(listId) {
   return sessions[0] || null;
 }
 
+// Every "how many times has this list been practised" figure shown to
+// anyone (the Lists tile, Celebration's "this is your Nth time") must count
+// only sessions that were actually finished — a session a child started and
+// then backed out of before the last word shouldn't read as a practice that
+// happened. getSessions() alone includes those; this is the filtered view
+// every caller displaying a count should use instead.
+export async function getCompletedSessions(listId) {
+  const sessions = await getSessions(listId);
+  return sessions.filter((s) => s.completedAt);
+}
+
 // One "got it" count per completed session, newest first — the raw material
 // for "N more than last time" and personal-best comparisons.
 export async function getSessionStats(listId) {
-  const sessions = (await getSessions(listId)).filter((s) => s.completedAt);
+  const sessions = await getCompletedSessions(listId);
   const out = [];
   for (const s of sessions) {
     const marks = await getMarksForSession(s.id);
@@ -281,6 +295,24 @@ export async function setChildName(name) {
   const trimmed = name?.trim();
   if (!trimmed) return;
   await idb.put("settings", { id: "profile", childName: trimmed });
+}
+
+// The sticker collection is built but off by default for now — a parent
+// opts in from Parents rather than it appearing unannounced. Separate
+// settings row from "profile" since this is a feature flag, not part of
+// the child's identity.
+export async function getStickersEnabled() {
+  const row = await idb.get("settings", "features");
+  return !!row?.stickersEnabled;
+}
+
+export async function setStickersEnabled(enabled) {
+  const row = await idb.get("settings", "features");
+  await idb.put("settings", {
+    ...row,
+    id: "features",
+    stickersEnabled: !!enabled,
+  });
 }
 
 // --- Backup / restore ---------------------------------------------------

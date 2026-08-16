@@ -62,3 +62,43 @@ test("changing the child's name in Parents updates praise text on Celebration", 
     page.getByText("You finished the whole list, Mia!"),
   ).toBeVisible();
 });
+
+test("sticker rewards are hidden by default and only appear once a parent turns them on", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Sticker List");
+    const blob = new Blob(["audio"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "star",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+  });
+  await page.goto("/");
+
+  // Off by default: no entry point on the homepage.
+  await expect(page.getByRole("button", { name: "My Stickers" })).toHaveCount(
+    0,
+  );
+
+  // And no "new sticker" callout on Celebration, even though this is her
+  // first completed practice (which would otherwise unlock one).
+  await page.getByRole("button", { name: "Practise" }).click();
+  await page.getByText("Sticker List").click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Next word" }).click();
+  await expect(
+    page.getByText("You finished the whole list, Chloe!"),
+  ).toBeVisible();
+  await expect(page.getByText("You earned a new sticker")).toHaveCount(0);
+
+  // A parent can turn it back on.
+  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "Parents" }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Back" }).click();
+
+  await expect(page.getByRole("button", { name: "My Stickers" })).toBeVisible();
+});
