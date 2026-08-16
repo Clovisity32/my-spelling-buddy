@@ -82,17 +82,26 @@ test("a full 2-word list can be practised end to end", async ({ page }) => {
     page.getByText("You finished the whole list, Chloe!"),
   ).toBeVisible();
 
-  const attempts = await page.evaluate(
+  const result = await page.evaluate(
     async ({ listId }) => {
       const words = await window.__storage.getWords(listId);
-      const out = [];
+      const session = await window.__storage.getLatestSession(listId);
+      const attempts = [];
       for (const w of words)
-        out.push(await window.__storage.getAttempt(listId, w.id));
-      return out;
+        attempts.push(await window.__storage.getAttempt(session.id, w.id));
+      return {
+        attempts,
+        sessionCompleted: !!session.completedAt,
+      };
     },
     { listId },
   );
-  expect(attempts.every((a) => Array.isArray(a) && a.length > 0)).toBe(true);
+  expect(result.attempts.every((a) => Array.isArray(a) && a.length > 0)).toBe(
+    true,
+  );
+  // Finishing the whole list (not a single-word retry) marks the session
+  // complete — this is what a fresh practice looks like versus a retry.
+  expect(result.sessionCompleted).toBe(true);
 });
 
 test("no scoring or right/wrong language appears anywhere in the practice flow", async ({

@@ -18,7 +18,7 @@ export default defineConfig({
       manifest: {
         name: "My Spelling Buddy",
         short_name: "SpellingBuddy",
-        description: "Chloe's spelling practice buddy",
+        description: "A spelling practice buddy",
         start_url: base,
         scope: base,
         display: "standalone",

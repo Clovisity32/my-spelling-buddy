@@ -5,7 +5,7 @@ import PageHeader from "../components/PageHeader.jsx";
 export default function Lists({ mode, onNavigate }) {
   const [lists, setLists] = useState([]);
   const [newName, setNewName] = useState("");
-  const [markSummary, setMarkSummary] = useState({}); // listId -> {marked, total}
+  const [sessionSummary, setSessionSummary] = useState({}); // listId -> {count}
   const [pendingDelete, setPendingDelete] = useState(null); // {list, timerId}
 
   async function refresh() {
@@ -14,14 +14,10 @@ export default function Lists({ mode, onNavigate }) {
     if (mode === "review") {
       const summary = {};
       for (const list of loaded) {
-        const marks = await window.__storage.getMarksForList(list.id);
-        const values = Object.values(marks);
-        summary[list.id] = {
-          marked: values.filter(Boolean).length,
-          total: values.length,
-        };
+        const sessions = await window.__storage.getSessions(list.id);
+        summary[list.id] = { count: sessions.length };
       }
-      setMarkSummary(summary);
+      setSessionSummary(summary);
     }
   }
 
@@ -39,8 +35,8 @@ export default function Lists({ mode, onNavigate }) {
 
   // Delete is undoable, same pattern as deleting a word in the list
   // editor: hide it immediately, only actually remove it (and its words,
-  // recordings, and marks — see storage/index.js's deleteList) after a few
-  // seconds with no Undo.
+  // practice sessions, and marks — see storage/index.js's deleteList) after
+  // a few seconds with no Undo.
   function requestDeleteList(list) {
     if (pendingDelete) {
       clearTimeout(pendingDelete.timerId);
@@ -61,13 +57,24 @@ export default function Lists({ mode, onNavigate }) {
     refresh();
   }
 
-  function selectList(list) {
+  async function selectList(list) {
     if (mode === "manage") onNavigate("editor", { listId: list.id });
-    else if (mode === "review") onNavigate("review", { listId: list.id });
-    // Practice mode starts the list immediately, using the shuffle
-    // preference the parent already set for it in the list editor — no
-    // intermediate checkbox-then-Start screen for Chloe to work through.
-    else onNavigate("test", { listId: list.id, shuffle: !!list.shuffle });
+    // Review opens the list's practice history first, rather than jumping
+    // straight into marking the newest session — a parent catching up on a
+    // few days of practice needs to pick which session they're looking at.
+    else if (mode === "review")
+      onNavigate("sessionHistory", { listId: list.id });
+    else {
+      // Practice mode starts a new session immediately, using the shuffle
+      // preference the parent already set for it in the list editor — no
+      // intermediate checkbox-then-Start screen for Chloe to work through.
+      const session = await window.__storage.startSession(list.id);
+      onNavigate("test", {
+        listId: list.id,
+        sessionId: session.id,
+        shuffle: !!list.shuffle,
+      });
+    }
   }
 
   const title = {
@@ -118,11 +125,13 @@ export default function Lists({ mode, onNavigate }) {
               </div>
               <div className="mt-0.5 text-sm text-slate-500">
                 {list.wordOrder.length} words
-                {mode === "review" && markSummary[list.id] && (
+                {mode === "review" && sessionSummary[list.id] && (
                   <>
                     {" "}
-                    · {markSummary[list.id].marked} of{" "}
-                    {markSummary[list.id].total} marked
+                    ·{" "}
+                    {sessionSummary[list.id].count > 0
+                      ? `practised ${sessionSummary[list.id].count} time${sessionSummary[list.id].count === 1 ? "" : "s"}`
+                      : "not practised yet"}
                   </>
                 )}
               </div>

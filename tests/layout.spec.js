@@ -99,16 +99,22 @@ test("review content column is centred, not flush against the left edge", async 
   await page.evaluate(async () => {
     const list = await window.__storage.createList("Centre List");
     const blob = new Blob(["a"], { type: "audio/webm" });
-    await window.__storage.addWord(list.id, {
+    const word = await window.__storage.addWord(list.id, {
       text: "moon",
       audioBlob: blob,
       audioMime: "audio/webm",
     });
+    const session = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(session.id, word.id, [
+      { id: "s1", tool: "pen", color: "#000", width: 4, points: [1, 1, 5, 5] },
+    ]);
+    await window.__storage.completeSession(session.id);
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Parents" }).click();
   await page.getByRole("button", { name: "Review Chloe's Work" }).click();
   await page.getByText("Centre List").click();
+  await page.getByRole("button", { name: /got it/ }).click();
 
   // Was max-w-2xl with no mx-auto: the cards hugged the left edge while the
   // header spanned the full width above them.

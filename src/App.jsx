@@ -8,6 +8,8 @@ import ListEditor from "./screens/ListEditor.jsx";
 import Test from "./screens/Test.jsx";
 import Celebration from "./screens/Celebration.jsx";
 import Review from "./screens/Review.jsx";
+import SessionHistory from "./screens/SessionHistory.jsx";
+import Stickers from "./screens/Stickers.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -56,6 +58,7 @@ export default function App() {
       {screen === "test" && (
         <Test
           listId={params.listId}
+          sessionId={params.sessionId}
           shuffle={params.shuffle}
           wordId={params.wordId}
           returnTo={params.returnTo}
@@ -63,15 +66,23 @@ export default function App() {
         />
       )}
       {screen === "celebration" && (
-        <Celebration listId={params.listId} onNavigate={navigate} />
+        <Celebration
+          listId={params.listId}
+          sessionId={params.sessionId}
+          onNavigate={navigate}
+        />
       )}
       {screen === "review" && (
         <Review
-          listId={params.listId}
+          sessionId={params.sessionId}
           focusWordId={params.focusWordId}
           onNavigate={navigate}
         />
       )}
+      {screen === "sessionHistory" && (
+        <SessionHistory listId={params.listId} onNavigate={navigate} />
+      )}
+      {screen === "stickers" && <Stickers onNavigate={navigate} />}
     </div>
   );
 }

@@ -12,6 +12,7 @@ const HAN_RE = /[㐀-䶿一-鿿豈-﫿]/;
 export default function ListEditor({ listId, onNavigate }) {
   const [list, setList] = useState(null);
   const [words, setWords] = useState([]);
+  const [childName, setChildName] = useState("Chloe");
   const [text, setText] = useState("");
   const [speechText, setSpeechText] = useState("");
   const [recordState, setRecordState] = useState("idle"); // idle | starting | recording
@@ -35,6 +36,10 @@ export default function ListEditor({ listId, onNavigate }) {
   useEffect(() => {
     refresh();
   }, [listId]);
+
+  useEffect(() => {
+    (async () => setChildName(await window.__storage.getChildName()))();
+  }, []);
 
   // Which Chinese voices actually exist is entirely up to the device —
   // load whatever the browser reports (voice lists arrive asynchronously
@@ -187,21 +192,15 @@ export default function ListEditor({ listId, onNavigate }) {
 
   function playWord(word) {
     setPlayingWordId(word.id);
-    if (word.useTts) {
-      window.__audio.speakWordEntry(word);
-      setTimeout(
-        () => setPlayingWordId((id) => (id === word.id ? null : id)),
-        1200,
-      );
-    } else if (word.audioBlob) {
-      window.__audio.playRecordedAudio(word.audioBlob);
-      setTimeout(
-        () => setPlayingWordId((id) => (id === word.id ? null : id)),
-        800,
-      );
-    } else {
+    if (!word.useTts && !word.audioBlob) {
       setPlayingWordId(null);
+      return;
     }
+    window.__audio.playWordEntry(word);
+    setTimeout(
+      () => setPlayingWordId((id) => (id === word.id ? null : id)),
+      word.useTts ? 1200 : 800,
+    );
   }
 
   if (!list) return null;
@@ -237,7 +236,7 @@ export default function ListEditor({ listId, onNavigate }) {
               checked={!!list.shuffle}
               onChange={toggleShuffle}
             />
-            🔀 Shuffle order when Chloe practises
+            🔀 Shuffle order when {childName} practises
           </label>
         }
       />
@@ -289,8 +288,8 @@ export default function ListEditor({ listId, onNavigate }) {
                 className="min-w-[16rem] rounded-xl border border-slate-300 px-4 py-2"
               />
               <p className="mt-1 text-xs text-slate-400">
-                Chloe still writes "{text.trim()}" — this is only what the app's
-                voice says. Leave blank for English words.
+                {childName} still writes "{text.trim()}" — this is only what the
+                app's voice says. Leave blank for English words.
               </p>
             </div>
           )}
@@ -298,7 +297,7 @@ export default function ListEditor({ listId, onNavigate }) {
           {/* Step 2: how Chloe hears it */}
           <div>
             <span className="t-label mb-1 block">
-              2. How should Chloe hear it?
+              2. How should {childName} hear it?
             </span>
             {pendingAudio ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-2">

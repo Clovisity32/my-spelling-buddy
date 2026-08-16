@@ -14,6 +14,10 @@ export default function Home({ onNavigate }) {
     })();
   }, []);
 
+  function playWord(word) {
+    window.__audio.playWordEntry(word);
+  }
+
   return (
     <Screen centered max="max-w-2xl">
       <h1 className="t-hero">My Spelling Buddy</h1>
@@ -24,12 +28,16 @@ export default function Home({ onNavigate }) {
           {latestWords.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {latestWords.map((word) => (
-                <span
+                <button
                   key={word.id}
-                  className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700"
+                  type="button"
+                  onClick={() => playWord(word)}
+                  aria-label={`Say "${word.text}"`}
+                  className="flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700 transition active:scale-95 hover:bg-sky-200"
                 >
+                  <span aria-hidden="true">🔊</span>
                   {word.text}
-                </span>
+                </button>
               ))}
             </div>
           ) : (
@@ -54,6 +62,14 @@ export default function Home({ onNavigate }) {
           Parents
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => onNavigate("stickers")}
+        className="btn btn-secondary btn-sm"
+      >
+        🎖️ My Stickers
+      </button>
     </Screen>
   );
 }

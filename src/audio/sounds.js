@@ -47,6 +47,29 @@ export async function playHappyTick() {
   });
 }
 
+// The "Got it!" celebration in Review — a fuller three-note rise than
+// playHappyTick, for the moment a word is marked as learned rather than a
+// quiet UI acknowledgement.
+export async function playGotIt() {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  tone(ctx, { freq: 659.25, start: now, duration: 0.12, type: "triangle" });
+  tone(ctx, {
+    freq: 830.61,
+    start: now + 0.1,
+    duration: 0.12,
+    type: "triangle",
+  });
+  tone(ctx, {
+    freq: 1046.5,
+    start: now + 0.2,
+    duration: 0.28,
+    type: "triangle",
+    gain: 0.25,
+  });
+}
+
 // A very short, quiet tap — general button-press feedback, deliberately
 // subtle so it doesn't compete with the more distinct celebratory sounds
 // (chime/fanfare/happy tick) that follow specific actions.

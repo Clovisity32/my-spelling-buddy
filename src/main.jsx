@@ -25,6 +25,14 @@ if (typeof window !== "undefined") {
     once: true,
   });
 
+  // Ask the browser to exempt this site's IndexedDB data from
+  // storage-pressure eviction. Not a guarantee — and it does nothing for
+  // "clear site data" or switching devices, which is what the export/import
+  // backup in Parents is for — but it's free and it helps.
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
+
   // A short click cue on every button tap, app-wide, via one delegated
   // listener rather than wiring onClick sound calls into every button in
   // every screen individually.

@@ -69,9 +69,11 @@ body {
   .btn-secondary {
     @apply bg-slate-200 text-slate-700 hover:bg-slate-300 focus-visible:ring-slate-400;
   }
-  /* rose = destructive only. NOTE: the Review "correct" tick is also red on
-     purpose (a teacher's red pen, explicitly requested) — that is a badge,
-     not a button, so the two never appear as the same affordance. */
+  /* rose = destructive only. The Review "Got it!" badge used to be a red
+     tick (a teacher's red pen) but that read as too minimal and too much
+     like a mark of failure elsewhere on the page — it's now a warm
+     amber-to-emerald star badge (see .tick-pop's use in Review.jsx), kept
+     off rose/red entirely. */
   .btn-danger {
     @apply bg-rose-100 text-rose-700 hover:bg-rose-200 focus-visible:ring-rose-400;
   }

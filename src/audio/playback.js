@@ -4,6 +4,7 @@
 // a DynamicsCompressorNode after the gain squashes the peaks first, so
 // the whole boosted signal stays loud without distorting.
 import { ensureAudioContextRunning } from "./context.js";
+import { speakWordEntry } from "./tts.js";
 
 export async function playRecordedAudio(blob, gain = 3) {
   try {
@@ -27,4 +28,12 @@ export async function playRecordedAudio(blob, gain = 3) {
     // Fall back to plain (unboosted) playback rather than staying silent.
     new Audio(URL.createObjectURL(blob)).play().catch(() => {});
   }
+}
+
+// The single "how does this word sound" decision, used everywhere a word
+// entry needs to be played — Home, Test, Review, and the list editor's
+// preview button all used to duplicate this same if/else.
+export function playWordEntry(word) {
+  if (word.useTts) speakWordEntry(word);
+  else if (word.audioBlob) playRecordedAudio(word.audioBlob);
 }

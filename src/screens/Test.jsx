@@ -13,11 +13,16 @@ function shuffleArray(arr) {
   return a;
 }
 
-// wordId + returnTo turn this into a single-word redo: Review sends a
-// parent here to have Chloe redo just one word, then bounces straight
-// back to Review instead of ending the whole list at Celebration.
+// wordId + returnTo turn this into a single-word "not yet" retry: Review
+// sends a parent here to have Chloe try just one word again, then bounces
+// straight back to Review instead of ending the whole list at Celebration.
+// Either way, sessionId is the practice session strokes are saved into —
+// a fresh one from Lists for a new practice, or the original session's id
+// when returning for a retry, so a retry updates that session rather than
+// starting a new history entry.
 export default function Test({
   listId,
+  sessionId,
   shuffle,
   wordId,
   returnTo,
@@ -26,6 +31,8 @@ export default function Test({
   const [words, setWords] = useState(null);
   const [index, setIndex] = useState(0);
   const [praise, setPraise] = useState(null);
+  const [childName, setChildName] = useState("there");
+  const [saveError, setSaveError] = useState(null);
   // Most devices (Android, laptops, any iPad without a Pencil to hand) have
   // no stylus at all, so a finger must be able to draw by default — palm
   // rejection already suppresses stray touches while a pen is actively
@@ -45,6 +52,10 @@ export default function Test({
     })();
   }, [listId, shuffle, wordId]);
 
+  useEffect(() => {
+    (async () => setChildName(await window.__storage.getChildName()))();
+  }, []);
+
   if (!words) return null;
   if (words.length === 0) {
     return (
@@ -57,7 +68,7 @@ export default function Test({
         <button
           type="button"
           onClick={() =>
-            returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+            returnTo ? onNavigate(returnTo, { sessionId }) : onNavigate("home")
           }
           className="btn btn-secondary"
         >
@@ -71,9 +82,8 @@ export default function Test({
   const isLast = index + 1 >= words.length;
 
   function playWord() {
-    if (word.useTts) window.__audio.speakWordEntry(word);
-    else if (word.audioBlob) window.__audio.playRecordedAudio(word.audioBlob);
-    else return;
+    if (!word.useTts && !word.audioBlob) return;
+    window.__audio.playWordEntry(word);
     // A tap with no visible response reads as broken to a child who can't
     // diagnose "volume's down" or "autoplay got blocked" — a brief pulse
     // is at least proof the tap registered.
@@ -82,18 +92,26 @@ export default function Test({
   }
 
   async function save() {
-    const strokes = wbRef.current.getStrokes();
-    await window.__storage.putAttempt(listId, word.id, strokes);
-    await window.__audio.playSaveChime();
-    setPraise(getRandomPraise());
+    try {
+      const strokes = wbRef.current.getStrokes();
+      await window.__storage.putAttempt(sessionId, word.id, strokes);
+      await window.__audio.playSaveChime();
+      setPraise(getRandomPraise(childName));
+      setSaveError(null);
+    } catch {
+      setSaveError(
+        "That didn't save — check the device isn't out of storage space, then try again.",
+      );
+    }
   }
 
-  function next() {
+  async function next() {
     setPraise(null);
     if (isLast) {
+      if (!returnTo) await window.__storage.completeSession(sessionId);
       onNavigate(
         returnTo || "celebration",
-        returnTo ? { listId, focusWordId: word.id } : { listId },
+        returnTo ? { sessionId, focusWordId: word.id } : { listId, sessionId },
       );
     } else {
       setIndex(index + 1);
@@ -112,7 +130,7 @@ export default function Test({
               : "Word 1 of 1"
         }
         onBack={() =>
-          returnTo ? onNavigate(returnTo, { listId }) : onNavigate("home")
+          returnTo ? onNavigate(returnTo, { sessionId }) : onNavigate("home")
         }
         backLabel={returnTo ? "Back" : "Home"}
       />
@@ -206,6 +224,23 @@ export default function Test({
           </>
         )}
       </div>
+
+      {/* Fixed-position, like the delete-undo toasts elsewhere — an error
+          here is rare (storage quota, a closed IndexedDB connection) and
+          must never resize the fixed-height footer above, which exists
+          specifically to keep the canvas from reflowing. */}
+      {saveError && (
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex w-[calc(100%-2.5rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
+          <span className="flex-1">{saveError}</span>
+          <button
+            type="button"
+            onClick={save}
+            className="font-semibold text-sky-300 underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
     </Screen>
   );
 }

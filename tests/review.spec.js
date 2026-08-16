@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("parent can review a completed list and tick a word, and the tick persists", async ({
+test("parent can review a completed session and mark a word Got it!, and the mark persists", async ({
   page,
 }) => {
   await page.goto("/");
@@ -12,7 +12,8 @@ test("parent can review a completed list and tick a word, and the tick persists"
       audioBlob: blob,
       audioMime: "audio/webm",
     });
-    await window.__storage.putAttempt(list.id, word.id, [
+    const session = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(session.id, word.id, [
       {
         id: "s1",
         tool: "pen",
@@ -21,25 +22,28 @@ test("parent can review a completed list and tick a word, and the tick persists"
         points: [10, 10, 90, 90],
       },
     ]);
+    await window.__storage.completeSession(session.id);
   });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Parents" }).click();
   await page.getByRole("button", { name: "Review Chloe's Work" }).click();
   await page.getByText("Review List").click();
+  await page.getByRole("button", { name: /got it/ }).click();
 
   await expect(page.getByText("moon")).toBeVisible();
-  await page.getByRole("button", { name: "Mark correct" }).click();
-  await expect(page.getByRole("img", { name: "Marked correct" })).toBeVisible();
+  await page.getByRole("button", { name: "Got it!" }).click();
+  await expect(page.getByRole("img", { name: "You got it!" })).toBeVisible();
 
   await page.reload();
   await page.getByRole("button", { name: "Parents" }).click();
   await page.getByRole("button", { name: "Review Chloe's Work" }).click();
   await page.getByText("Review List").click();
-  await expect(page.getByRole("img", { name: "Marked correct" })).toBeVisible();
+  await page.getByRole("button", { name: /got it/ }).click();
+  await expect(page.getByRole("img", { name: "You got it!" })).toBeVisible();
 });
 
-test("parent can send a word back for a redo, and it returns to review with a fresh attempt", async ({
+test("parent can send a word back for 'not yet', and it returns to review in the same session with a fresh attempt", async ({
   page,
 }) => {
   await page.goto("/");
@@ -51,28 +55,23 @@ test("parent can send a word back for a redo, and it returns to review with a fr
       audioBlob: blob,
       audioMime: "audio/webm",
     });
-    await window.__storage.putAttempt(list.id, word.id, [
+    const session = await window.__storage.startSession(list.id);
+    await window.__storage.putAttempt(session.id, word.id, [
       { id: "s1", tool: "pen", color: "#000", width: 4, points: [1, 1, 5, 5] },
     ]);
-    await window.__storage.setMark(list.id, word.id, true);
-    return { listId: list.id, wordId: word.id };
+    await window.__storage.setMark(session.id, word.id, "gotIt");
+    await window.__storage.completeSession(session.id);
+    return { listId: list.id, wordId: word.id, sessionId: session.id };
   });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Parents" }).click();
   await page.getByRole("button", { name: "Review Chloe's Work" }).click();
   await page.getByText("Redo List").click();
-  await expect(page.getByRole("img", { name: "Marked correct" })).toBeVisible();
+  await page.getByRole("button", { name: /got it/ }).click();
+  await expect(page.getByRole("img", { name: "You got it!" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Redo" }).click();
-
-  // Clicking Redo clears the existing mark, since the attempt it applied to
-  // is about to be overwritten.
-  const markAfterRedo = await page.evaluate(
-    ({ listId }) => window.__storage.getMarksForList(listId),
-    { listId },
-  );
-  expect(Object.values(markAfterRedo)[0]).toBe(false);
+  await page.getByRole("button", { name: "Not yet — try again" }).click();
 
   // Lands on the usual practice screen, scoped to just this one word.
   await expect(
@@ -104,17 +103,23 @@ test("parent can send a word back for a redo, and it returns to review with a fr
   });
   await page.getByRole("button", { name: "Save" }).click();
 
-  // A single-word redo ends with a distinct label rather than "Next word",
+  // A single-word retry ends with a distinct label rather than "Next word",
   // since there's no next word — it goes back to Review instead.
   await page.getByRole("button", { name: "Done — back to review" }).click();
 
   await expect(page.getByText("Reviewing: Redo List")).toBeVisible();
-  const strokesAfter = await page.evaluate(
-    ({ listId, wordId }) => window.__storage.getAttempt(listId, wordId),
+  const after = await page.evaluate(
+    async ({ listId, wordId }) => {
+      const sessions = await window.__storage.getSessions(listId);
+      const session = sessions[0];
+      const strokes = await window.__storage.getAttempt(session.id, wordId);
+      return { sessionCount: sessions.length, strokes };
+    },
     { listId, wordId },
   );
-  expect(strokesAfter.length).toBeGreaterThan(0);
-  await expect(page.getByRole("img", { name: "Marked correct" })).toHaveCount(
-    0,
-  );
+  // Still exactly one session — a "not yet" retry updates it in place
+  // rather than starting a new history entry.
+  expect(after.sessionCount).toBe(1);
+  expect(after.strokes.length).toBeGreaterThan(0);
+  await expect(page.getByRole("img", { name: "You got it!" })).toHaveCount(0);
 });
