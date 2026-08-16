@@ -41,5 +41,6 @@ export async function playRecordedAudio(blob, gain = 3, rate = 1) {
 // parent's own recording.
 export function playWordEntry(word, { slow = false } = {}) {
   if (word.useTts) speakWordEntry(word, { slow });
-  else if (word.audioBlob) playRecordedAudio(word.audioBlob, 3, slow ? 0.5 : 1);
+  else if (word.audioBlob)
+    playRecordedAudio(word.audioBlob, 3, slow ? 0.25 : 1);
 }

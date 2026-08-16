@@ -164,15 +164,16 @@ export function speakWord(text, lang = "zh", voiceURI = null, rate = 0.9) {
 // storage/index.js's addWord. Every screen that plays a saved word goes
 // through here so they can't drift apart on which field wins.
 //
-// `slow` is the practice-screen "hint" — noticeably slower than the normal
-// 0.9 rate, so a child can try to sound the word out syllable by syllable.
+// `slow` is the practice-screen "hint" — dramatically slower than the
+// normal 0.9 rate (a quarter speed, not just half), so a child can stretch
+// the word out and try to blend each sound.
 export function speakWordEntry(word, { slow = false } = {}) {
   if (!word) return;
   speakWord(
     word.speechText || word.text,
     word.ttsLang,
     word.ttsVoiceURI,
-    slow ? 0.5 : 0.9,
+    slow ? 0.25 : 0.9,
   );
 }
 

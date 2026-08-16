@@ -114,7 +114,7 @@ test("speakWordEntry's slow hint noticeably lowers the speech rate", async ({
   });
   const [normalRate, slowRate] = rates;
   expect(slowRate).toBeLessThan(normalRate);
-  expect(slowRate).toBeLessThanOrEqual(0.5);
+  expect(slowRate).toBeLessThanOrEqual(0.25);
 });
 
 test("a word's Chinese characters survive a reload and drive playback", async ({
