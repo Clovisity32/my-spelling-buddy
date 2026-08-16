@@ -104,6 +104,88 @@ test("a full 2-word list can be practised end to end", async ({ page }) => {
   expect(result.sessionCompleted).toBe(true);
 });
 
+test("an accidental Save on an empty board is blocked, and works once something is written", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Empty Save List");
+    const blob = new Blob(["audio"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "owl",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Practise" }).click();
+  await page.getByText("Empty Save List").click();
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText(/nothing's been written yet/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next word" })).toHaveCount(0);
+
+  const canvas = page.locator("canvas");
+  const box = await canvas.boundingBox();
+  await canvas.dispatchEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 10,
+    clientY: box.y + 10,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("button", { name: "Next word" })).toBeVisible();
+});
+
+test("the hint button plays the word slowly, separately from the normal Play button", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const list = await window.__storage.createList("Hint List");
+    const blob = new Blob(["audio"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "kite",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Practise" }).click();
+  await page.getByText("Hint List").click();
+
+  await page.evaluate(() => {
+    window.__playCalls = [];
+    window.__audio.playWordEntry = (word, opts) =>
+      window.__playCalls.push({ text: word.text, slow: !!opts?.slow });
+  });
+
+  await page.getByRole("button", { name: "Play the word" }).click();
+  await page.getByRole("button", { name: "Hint: say it slowly" }).click();
+
+  const calls = await page.evaluate(() => window.__playCalls);
+  expect(calls).toEqual([
+    { text: "kite", slow: false },
+    { text: "kite", slow: true },
+  ]);
+});
+
 test("no scoring or right/wrong language appears anywhere in the practice flow", async ({
   page,
 }) => {
@@ -124,6 +206,31 @@ test("no scoring or right/wrong language appears anywhere in the practice flow",
   const banned = /wrong|incorrect|failed|score|percent|%/i;
   const bodyText = await page.locator("body").innerText();
   expect(bodyText).not.toMatch(banned);
+
+  // Save is guarded against an empty board, so draw something first.
+  const canvas = page.locator("canvas");
+  const box = await canvas.boundingBox();
+  await canvas.dispatchEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 10,
+    clientY: box.y + 10,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
 
   await page.getByRole("button", { name: "Save" }).click();
   const afterSave = await page.locator("body").innerText();

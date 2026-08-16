@@ -129,7 +129,7 @@ function pinyinForSpeech(text) {
   return toneNumbersToMarks(text.toLowerCase());
 }
 
-export function speakWord(text, lang = "zh", voiceURI = null) {
+export function speakWord(text, lang = "zh", voiceURI = null, rate = 0.9) {
   if (!isSpeechSynthesisSupported() || !text) return;
   window.speechSynthesis.cancel(); // don't let overlapping taps queue up
   const spokenText = lang === "zh" ? pinyinForSpeech(text) : text;
@@ -154,7 +154,7 @@ export function speakWord(text, lang = "zh", voiceURI = null) {
   } else {
     utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
   }
-  utterance.rate = 0.9;
+  utterance.rate = rate;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -163,9 +163,17 @@ export function speakWord(text, lang = "zh", voiceURI = null) {
 // a Mandarin engine reads characters and not romanization — see
 // storage/index.js's addWord. Every screen that plays a saved word goes
 // through here so they can't drift apart on which field wins.
-export function speakWordEntry(word) {
+//
+// `slow` is the practice-screen "hint" — noticeably slower than the normal
+// 0.9 rate, so a child can try to sound the word out syllable by syllable.
+export function speakWordEntry(word, { slow = false } = {}) {
   if (!word) return;
-  speakWord(word.speechText || word.text, word.ttsLang, word.ttsVoiceURI);
+  speakWord(
+    word.speechText || word.text,
+    word.ttsLang,
+    word.ttsVoiceURI,
+    slow ? 0.5 : 0.9,
+  );
 }
 
 // True when the device has no Mandarin voice at all. speakWord falls back

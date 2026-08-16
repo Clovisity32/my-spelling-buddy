@@ -22,6 +22,34 @@ async function seedAndStartPractice(page) {
   await page.getByText("Layout List").click();
 }
 
+// Save is guarded against an empty board (see Test.jsx), so any test that
+// wants to reach "Next word" has to actually draw something first.
+async function drawStroke(page) {
+  const canvas = page.locator("canvas");
+  const box = await canvas.boundingBox();
+  await canvas.dispatchEvent("pointerdown", {
+    pointerId: 99,
+    pointerType: "mouse",
+    clientX: box.x + 10,
+    clientY: box.y + 10,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 99,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 99,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+}
+
 for (const [orientation, size] of [
   ["landscape", { width: 1180, height: 820 }],
   ["portrait", { width: 820, height: 1180 }],
@@ -38,20 +66,23 @@ for (const [orientation, size] of [
     const check = async (label) => {
       const c = await canvas.boundingBox();
       const t = await clear.boundingBox();
-      // The canvas must end above the toolbar, not bleed across it.
-      expect(
-        c.y + c.height,
-        `canvas overlaps toolbar ${label}`,
-      ).toBeLessThanOrEqual(t.y + 1);
-      // And the toolbar itself must be inside the viewport.
+      // Toolbar sits above the canvas (moved there so a writing hand's
+      // palm can't rest on it) — it must end above the canvas, not bleed
+      // across it.
       expect(
         t.y + t.height,
-        `toolbar past viewport bottom ${label}`,
+        `toolbar overlaps canvas ${label}`,
+      ).toBeLessThanOrEqual(c.y + 1);
+      // And the canvas itself must be inside the viewport.
+      expect(
+        c.y + c.height,
+        `canvas past viewport bottom ${label}`,
       ).toBeLessThanOrEqual(size.height + 1);
     };
 
     await check("before save");
 
+    await drawStroke(page);
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("button", { name: "Next word" })).toBeVisible();
 
@@ -69,6 +100,7 @@ for (const [orientation, size] of [
     const canvas = page.locator("canvas");
     const before = await canvas.boundingBox();
 
+    await drawStroke(page);
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("button", { name: "Next word" })).toBeVisible();
 

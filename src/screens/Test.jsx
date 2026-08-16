@@ -33,15 +33,14 @@ export default function Test({
   const [praise, setPraise] = useState(null);
   const [childName, setChildName] = useState("there");
   const [saveError, setSaveError] = useState(null);
-  // Most devices (Android, laptops, any iPad without a Pencil to hand) have
-  // no stylus at all, so a finger must be able to draw by default — palm
-  // rejection already suppresses stray touches while a pen is actively
-  // tracked, so Pencil users lose nothing. Defaulting this off (as it
-  // originally was) meant a child's finger did nothing at all on first run
-  // on any non-Pencil device, with the only escape being a text button she
-  // can't read.
-  const [fingerDraw, setFingerDraw] = useState(true);
+  // Off by default: a stylus is the expected input, and the toolbar (now
+  // above the canvas, not below it — see Whiteboard.jsx) already gives a
+  // child without a Pencil today a visible "No pencil today?" toggle to
+  // turn this on herself, rather than the app guessing every device needs
+  // a bare finger to draw with palm-rejection doing all the work.
+  const [fingerDraw, setFingerDraw] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isHintPlaying, setIsHintPlaying] = useState(false);
   const wbRef = useRef(null);
 
   useEffect(() => {
@@ -91,9 +90,27 @@ export default function Test({
     setTimeout(() => setIsPlayingAudio(false), 1400);
   }
 
+  // The hint: same word, noticeably slower, for sounding it out.
+  function playHint() {
+    if (!word.useTts && !word.audioBlob) return;
+    window.__audio.playWordEntry(word, { slow: true });
+    setIsHintPlaying(true);
+    setTimeout(() => setIsHintPlaying(false), 1400);
+  }
+
   async function save() {
+    const strokes = wbRef.current.getStrokes();
+    // An accidental tap on Save before anything's been written must not
+    // silently complete the word with nothing recorded and no way back to
+    // it this sitting — leave her on the Save button so she can just write
+    // and try again.
+    if (strokes.length === 0) {
+      setSaveError(
+        "Looks like nothing's been written yet — give it a try, then tap Save.",
+      );
+      return;
+    }
     try {
-      const strokes = wbRef.current.getStrokes();
       await window.__storage.putAttempt(sessionId, word.id, strokes);
       await window.__audio.playSaveChime();
       setPraise(getRandomPraise(childName));
@@ -178,14 +195,25 @@ export default function Test({
         </>
       )}
 
-      <button
-        type="button"
-        onClick={playWord}
-        aria-label="Play the word"
-        className={`mx-auto mb-2 flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-4xl text-white shadow-lg transition active:scale-95 short:h-16 short:w-16 short:text-2xl ${isPlayingAudio ? "scale-110 ring-8 ring-emerald-200" : ""}`}
-      >
-        {"▶"}
-      </button>
+      <div className="mx-auto mb-2 flex shrink-0 items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={playWord}
+          aria-label="Play the word"
+          className={`flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500 text-4xl text-white shadow-lg transition active:scale-95 short:h-16 short:w-16 short:text-2xl ${isPlayingAudio ? "scale-110 ring-8 ring-emerald-200" : "play-blink"}`}
+        >
+          {"▶"}
+        </button>
+        <button
+          type="button"
+          onClick={playHint}
+          aria-label="Hint: say it slowly"
+          title="Hear it said slowly"
+          className={`flex h-14 w-14 items-center justify-center rounded-full bg-amber-400 text-2xl text-white shadow-md transition active:scale-95 short:h-11 short:w-11 short:text-lg ${isHintPlaying ? "scale-110 ring-8 ring-amber-200" : ""}`}
+        >
+          🐢
+        </button>
+      </div>
 
       <div className="min-h-0 flex-1">
         <Whiteboard
@@ -199,8 +227,10 @@ export default function Test({
       {/* Fixed-height footer. Save and the praise message occupy the same
           slot at the same height, so saving a word cannot resize the
           whiteboard above — which is what left the canvas at a stale size,
-          overflowing its container and painting over the toolbar. */}
-      <div className="mt-3 flex h-[4.5rem] shrink-0 items-center justify-center gap-4 short:mt-2 short:h-16">
+          overflowing its container and painting over the toolbar.
+          `relative` anchors the error banner below, which is `absolute` so
+          it can never change this element's height either. */}
+      <div className="relative mt-3 flex h-[4.5rem] shrink-0 items-center justify-center gap-4 short:mt-2 short:h-16">
         {!praise ? (
           <button
             type="button"
@@ -223,24 +253,30 @@ export default function Test({
             </button>
           </>
         )}
-      </div>
 
-      {/* Fixed-position, like the delete-undo toasts elsewhere — an error
-          here is rare (storage quota, a closed IndexedDB connection) and
-          must never resize the fixed-height footer above, which exists
-          specifically to keep the canvas from reflowing. */}
-      {saveError && (
-        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex w-[calc(100%-2.5rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
-          <span className="flex-1">{saveError}</span>
-          <button
-            type="button"
-            onClick={save}
-            className="font-semibold text-sky-300 underline"
-          >
-            Try again
-          </button>
-        </div>
-      )}
+        {/* `absolute` + `bottom-full` floats this above the footer rather
+            than over it — a `fixed` toast at the viewport bottom (the
+            pattern used for the delete-undo toasts elsewhere) used to sit
+            right on top of the Save button here, which defeats the whole
+            point of the empty-board guard: the big button she'd actually
+            tap became unreachable, leaving only the small "Try again"
+            text as a way to retry. Being `absolute` means it still can't
+            resize the fixed-height footer above. */}
+        {saveError && (
+          <div className="absolute inset-x-0 bottom-full mb-2 flex justify-center px-2">
+            <div className="flex w-full max-w-md items-center gap-3 rounded-xl bg-slate-800 px-5 py-3 text-sm text-white shadow-lg">
+              <span className="flex-1">{saveError}</span>
+              <button
+                type="button"
+                onClick={save}
+                className="font-semibold text-sky-300 underline"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </Screen>
   );
 }

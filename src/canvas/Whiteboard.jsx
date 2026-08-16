@@ -280,21 +280,14 @@ const Whiteboard = forwardRef(function Whiteboard(
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden">
-      <div
-        ref={containerRef}
-        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-        data-stroke-count={strokeCount}
-      >
-        <canvas
-          ref={canvasRef}
-          className="rounded-2xl bg-white shadow-inner"
-          style={{ touchAction: "none", display: "block" }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        />
-      </div>
+      {/* Toolbar sits above the canvas, not below it — a writing hand's
+          palm drifts down and to the side of the board while writing, so a
+          toolbar directly underneath it (the original layout) was in the
+          exact spot most likely to catch an accidental palm tap. Above the
+          board, right below the practice screen's Play button, is out of
+          the way of that. fitCanvas() measures the canvas wrapper's own
+          clientWidth/clientHeight below, not its position among siblings,
+          so reordering these two doesn't change how the canvas is sized. */}
       <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 rounded-2xl bg-white/80 p-2 short:gap-1.5">
         {COLORS.map((c) => (
           <button
@@ -359,6 +352,21 @@ const Whiteboard = forwardRef(function Whiteboard(
         >
           {fingerDraw ? "👆 Finger draw: on" : "👆 No pencil today?"}
         </button>
+      </div>
+      <div
+        ref={containerRef}
+        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+        data-stroke-count={strokeCount}
+      >
+        <canvas
+          ref={canvasRef}
+          className="rounded-2xl bg-white shadow-inner"
+          style={{ touchAction: "none", display: "block" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        />
       </div>
     </div>
   );

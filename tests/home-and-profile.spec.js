@@ -1,5 +1,33 @@
 import { test, expect } from "@playwright/test";
 
+// Save is guarded against an empty board (see Test.jsx), so any test that
+// wants to reach "Next word" has to actually draw something first.
+async function drawStroke(page) {
+  const canvas = page.locator("canvas");
+  const box = await canvas.boundingBox();
+  await canvas.dispatchEvent("pointerdown", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 10,
+    clientY: box.y + 10,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + 60,
+    clientY: box.y + 60,
+    isPrimary: true,
+  });
+}
+
 test("tapping a word on the homepage says just that word, not the whole list", async ({
   page,
 }) => {
@@ -55,6 +83,7 @@ test("changing the child's name in Parents updates praise text on Celebration", 
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Name List").click();
+  await drawStroke(page);
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("button", { name: "Next word" }).click();
 
@@ -87,6 +116,7 @@ test("sticker rewards are hidden by default and only appear once a parent turns 
   // first completed practice (which would otherwise unlock one).
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Sticker List").click();
+  await drawStroke(page);
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("button", { name: "Next word" }).click();
   await expect(

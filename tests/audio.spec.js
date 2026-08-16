@@ -98,6 +98,25 @@ test("speakWordEntry speaks a pinyin word's Chinese characters, not its romaniza
   expect(spoken).toEqual(["你好", "apple"]);
 });
 
+test("speakWordEntry's slow hint noticeably lowers the speech rate", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const rates = await page.evaluate(() => {
+    const captured = [];
+    window.speechSynthesis.speak = (u) => captured.push(u.rate);
+    window.__audio.speakWordEntry({ text: "owl", ttsLang: "en" });
+    window.__audio.speakWordEntry(
+      { text: "owl", ttsLang: "en" },
+      { slow: true },
+    );
+    return captured;
+  });
+  const [normalRate, slowRate] = rates;
+  expect(slowRate).toBeLessThan(normalRate);
+  expect(slowRate).toBeLessThanOrEqual(0.5);
+});
+
 test("a word's Chinese characters survive a reload and drive playback", async ({
   page,
 }) => {
