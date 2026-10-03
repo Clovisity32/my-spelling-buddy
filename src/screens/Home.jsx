@@ -39,8 +39,7 @@ export default function Home({ onNavigate }) {
     (async () => setChildName(await window.__storage.getChildName()))();
     // Both reads are issued together at mount (not one after the other), so
     // every request is in flight before the first await settles.
-    (async () =>
-      setStreak(await window.__storage.getPracticeStreak()))();
+    (async () => setStreak(await window.__storage.getPracticeStreak()))();
     (async () => {
       const last = await window.__storage.getLastPracticeAt();
       setDaysAway(last ? Math.floor((Date.now() - last) / 86400000) : 0);
@@ -82,7 +81,12 @@ export default function Home({ onNavigate }) {
     <Screen centered max="max-w-2xl">
       <h1 className="t-hero">My Spelling Buddy</h1>
 
-      <div className="flex items-end justify-center gap-2">
+      <div className="relative flex items-end justify-center gap-2">
+        {/* A soft warm glow, like a nightlight — Buddy should feel snug. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-4 left-1/2 h-40 w-40 -translate-x-[70%] rounded-full bg-amber-200/60 blur-3xl"
+        />
         <Buddy
           mood={buddyMood}
           color={buddyStyle.color}

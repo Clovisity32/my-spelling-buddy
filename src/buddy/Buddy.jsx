@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import "./buddy.css";
 
 // Pastel family, one per member of Chloe's drawing.
@@ -108,17 +108,74 @@ export default function Buddy({
   className = "",
 }) {
   const [reaction, setReaction] = useState(null);
+  // Squishing: pressed = finger is down (squash), hugging = held long
+  // enough to become a cuddle (happy closed eyes, hearts, purr), boing = the
+  // spring back after letting go.
+  const [pressed, setPressed] = useState(false);
+  const [hugging, setHugging] = useState(false);
+  const [boing, setBoing] = useState(false);
   const timer = useRef(null);
+  const holdTimer = useRef(null);
+  const boingTimer = useRef(null);
+  const stopPurr = useRef(null);
+  // "none" | "hugging" | "hugged" — "hugged" survives until the click that
+  // follows the release, so that click is not mistaken for a tap.
+  const hugState = useRef("none");
+  const uid = useId().replace(/:/g, "");
   const palette = BUDDY_COLORS[color] || BUDDY_COLORS.peach;
-  const open = mood === "cheer" || mood === "love" || reaction === "jump";
+  const open =
+    !hugging && (mood === "cheer" || mood === "love" || reaction === "jump");
   const showHearts =
-    mood === "cheer" || mood === "love" || reaction === "heart";
+    hugging || mood === "cheer" || mood === "love" || reaction === "heart";
   const px = lookAt ? lookAt.x * 4 : 0;
   const py = lookAt ? lookAt.y * 3 : 0;
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      clearTimeout(holdTimer.current);
+      clearTimeout(boingTimer.current);
+      stopPurr.current?.();
+    },
+    [],
+  );
+
+  function press() {
+    setPressed(true);
+    hugState.current = "none";
+    clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(async () => {
+      hugState.current = "hugging";
+      setHugging(true);
+      const stop = await window.__audio?.startBuddyPurr?.();
+      // Released while the purr was still starting up: stop it right away.
+      if (hugState.current === "hugging") stopPurr.current = stop;
+      else stop?.();
+    }, 500);
+  }
+
+  function release() {
+    clearTimeout(holdTimer.current);
+    if (!pressed) return;
+    setPressed(false);
+    setBoing(true);
+    clearTimeout(boingTimer.current);
+    boingTimer.current = setTimeout(() => setBoing(false), 700);
+    if (hugState.current === "hugging") {
+      hugState.current = "hugged";
+      stopPurr.current?.();
+      stopPurr.current = null;
+      setHugging(false);
+      window.__audio?.playBuddyAww?.();
+    }
+  }
 
   function tap() {
+    // A long hold was a hug, not a tap — don't also fire a tap reaction.
+    if (hugState.current === "hugged") {
+      hugState.current = "none";
+      return;
+    }
     const r = REACTIONS[Math.floor(Math.random() * REACTIONS.length)];
     setReaction(r);
     clearTimeout(timer.current);
@@ -131,6 +188,8 @@ export default function Buddy({
     "buddy",
     `buddy--${mood}`,
     reaction ? `buddy--r-${reaction}` : "",
+    pressed ? "buddy--pressed" : "",
+    boing ? "buddy--boing" : "",
     className,
   ]
     .filter(Boolean)
@@ -141,7 +200,12 @@ export default function Buddy({
       type="button"
       onClick={tap}
       aria-label={label}
-      data-buddy-mood={reaction ? `r-${reaction}` : mood}
+      data-buddy-mood={hugging ? "hug" : reaction ? `r-${reaction}` : mood}
+      onPointerDown={press}
+      onPointerUp={release}
+      onPointerLeave={release}
+      onPointerCancel={release}
+      onContextMenu={(e) => e.preventDefault()}
       className={classes}
       style={{
         width: size,
@@ -152,6 +216,22 @@ export default function Buddy({
       }}
     >
       <svg viewBox="0 0 200 300" width="100%" height="100%" aria-hidden="true">
+        <defs>
+          {/* Soft light from the top-left and a deeper rim at the edges: a
+              flat fill reads as a sticker, this reads as a plush toy. */}
+          <radialGradient id={`${uid}-hi`} cx="38%" cy="28%" r="62%">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`${uid}-rim`} cx="50%" cy="45%" r="62%">
+            <stop offset="62%" stopColor={palette.edge} stopOpacity="0" />
+            <stop offset="100%" stopColor={palette.edge} stopOpacity="0.45" />
+          </radialGradient>
+        </defs>
+
+        {/* soft ground shadow */}
+        <ellipse cx="100" cy="298" rx="78" ry="7" fill="#000" opacity="0.08" />
+
         {/* feet with toe beans */}
         <g>
           <ellipse
@@ -190,194 +270,216 @@ export default function Buddy({
           <ellipse cx="138" cy="291" rx="9" ry="5" fill={palette.ear} />
         </g>
 
-        <g className="buddy-bob">
-          {/* ears */}
-          <g className="buddy-ear-l">
-            <circle
-              cx="55"
-              cy="58"
-              r="24"
-              fill={palette.body}
-              stroke={palette.edge}
-              strokeWidth="3"
-            />
-            <circle cx="55" cy="60" r="12" fill={palette.ear} />
-          </g>
-          <g className="buddy-ear-r">
-            <circle
-              cx="145"
-              cy="58"
-              r="24"
-              fill={palette.body}
-              stroke={palette.edge}
-              strokeWidth="3"
-            />
-            <circle cx="145" cy="60" r="12" fill={palette.ear} />
-          </g>
-
-          {/* bean body */}
-          <path
-            d="M28 280 C14 160 30 36 100 36 C170 36 186 160 172 280 Q100 296 28 280 Z"
-            fill={palette.body}
-            stroke={palette.edge}
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-          <ellipse
-            cx="78"
-            cy="80"
-            rx="22"
-            ry="12"
-            fill="#fff"
-            opacity="0.35"
-            transform="rotate(-20 78 80)"
-          />
-
-          {/* the little curly tuft with its bow */}
-          <path
-            d="M100 38 C92 18 104 10 108 22 C112 12 124 18 112 38"
-            fill={palette.ear}
-            stroke={palette.edge}
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-          <circle
-            cx="100"
-            cy="36"
-            r="4"
-            fill="#ff5c7a"
-            stroke="#d93a5c"
-            strokeWidth="1.5"
-          />
-
-          {/* eyes */}
-          <g className="buddy-eyes">
-            {[72, 128].map((cx) => (
-              <g key={cx}>
-                <circle
-                  cx={cx}
-                  cy="120"
-                  r="13"
-                  fill="#fff"
-                  stroke="#555"
-                  strokeWidth="2.5"
-                />
-                <circle cx={cx + px} cy={122 + py} r="8" fill="#3b3b4f" />
-                <circle cx={cx + px + 3} cy={118 + py} r="3" fill="#fff" />
-              </g>
-            ))}
-          </g>
-
-          {mood === "sleepy" && (
-            <g fill={palette.body} stroke="#555" strokeWidth="2.5">
-              {[72, 128].map((cx) => (
-                <path
-                  key={cx}
-                  d={`M${cx - 14} 118 L${cx + 14} 118 L${cx + 14} 112 Q${cx} 100 ${cx - 14} 112 Z`}
-                />
-              ))}
-            </g>
-          )}
-
-          {/* cheeks */}
-          <ellipse
-            cx="52"
-            cy="148"
-            rx="11"
-            ry="7"
-            fill="#ff9db4"
-            opacity={mood === "love" ? 0.9 : 0.55}
-          />
-          <ellipse
-            cx="148"
-            cy="148"
-            rx="11"
-            ry="7"
-            fill="#ff9db4"
-            opacity={mood === "love" ? 0.9 : 0.55}
-          />
-
-          {/* mouth */}
-          {open ? (
-            <g>
-              <path
-                d="M82 148 Q100 180 118 148 Z"
-                fill="#7a2a3a"
-                stroke="#555"
-                strokeWidth="2.5"
-                strokeLinejoin="round"
+        <g className="buddy-squish">
+          <g className="buddy-bob">
+            {/* ears */}
+            <g className="buddy-ear-l">
+              <circle
+                cx="55"
+                cy="58"
+                r="24"
+                fill={palette.body}
+                stroke={palette.edge}
+                strokeWidth="3"
               />
-              <path
-                d="M90 162 Q100 172 110 162 Q100 158 90 162 Z"
-                fill="#ff8aa0"
-              />
+              <circle cx="55" cy="60" r="12" fill={palette.ear} />
             </g>
-          ) : (
+            <g className="buddy-ear-r">
+              <circle
+                cx="145"
+                cy="58"
+                r="24"
+                fill={palette.body}
+                stroke={palette.edge}
+                strokeWidth="3"
+              />
+              <circle cx="145" cy="60" r="12" fill={palette.ear} />
+            </g>
+
+            {/* bean body */}
             <path
-              d="M84 152 Q100 168 116 152"
-              fill="none"
-              stroke="#555"
+              d="M28 280 C14 160 30 36 100 36 C170 36 186 160 172 280 Q100 296 28 280 Z"
+              fill={palette.body}
+              stroke={palette.edge}
               strokeWidth="3.5"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M28 280 C14 160 30 36 100 36 C170 36 186 160 172 280 Q100 296 28 280 Z"
+              fill={`url(#${uid}-hi)`}
+            />
+            <path
+              d="M28 280 C14 160 30 36 100 36 C170 36 186 160 172 280 Q100 296 28 280 Z"
+              fill={`url(#${uid}-rim)`}
+            />
+            {/* lighter, fluffy tummy */}
+            <ellipse
+              cx="100"
+              cy="212"
+              rx="50"
+              ry="58"
+              fill="#fff"
+              opacity="0.32"
+            />
+
+            {/* the little curly tuft with its bow */}
+            <path
+              d="M100 38 C92 18 104 10 108 22 C112 12 124 18 112 38"
+              fill={palette.ear}
+              stroke={palette.edge}
+              strokeWidth="3"
               strokeLinecap="round"
             />
-          )}
+            <circle
+              cx="100"
+              cy="36"
+              r="4"
+              fill="#ff5c7a"
+              stroke="#d93a5c"
+              strokeWidth="1.5"
+            />
 
-          {/* arms + heart */}
-          <path
-            className="buddy-arm-l"
-            d="M32 196 C50 200 66 214 84 232"
-            fill="none"
-            stroke={palette.edge}
-            strokeWidth="4"
-            strokeLinecap="round"
-          />
-          <path
-            className="buddy-arm-r"
-            d="M168 196 C150 200 134 214 116 232"
-            fill="none"
-            stroke={palette.edge}
-            strokeWidth="4"
-            strokeLinecap="round"
-          />
-          <Heart className="buddy-heart" x={100} y={226} size={3.2} />
-
-          <Accessory kind={accessory} />
-
-          {mood === "sleepy" &&
-            [
-              [150, 30, 0],
-              [168, 10, 0.6],
-            ].map(([x, y, d], i) => (
-              <text
-                key={i}
-                className="buddy-zzz"
-                style={{ animationDelay: `${d}s` }}
-                x={x}
-                y={y}
-                fontSize="22"
-                fontWeight="700"
-                fill="#7c8db5"
+            {/* eyes */}
+            {hugging ? (
+              <g
+                fill="none"
+                stroke="#555"
+                strokeWidth="4"
+                strokeLinecap="round"
               >
-                z
-              </text>
-            ))}
+                <path d="M58 124 Q72 106 86 124" />
+                <path d="M114 124 Q128 106 142 124" />
+              </g>
+            ) : (
+              <g className="buddy-eyes">
+                {[72, 128].map((cx) => (
+                  <g key={cx}>
+                    <circle
+                      cx={cx}
+                      cy="120"
+                      r="13"
+                      fill="#fff"
+                      stroke="#555"
+                      strokeWidth="2.5"
+                    />
+                    <circle cx={cx + px} cy={122 + py} r="8" fill="#3b3b4f" />
+                    <circle cx={cx + px + 3} cy={118 + py} r="3" fill="#fff" />
+                  </g>
+                ))}
+              </g>
+            )}
 
-          {showHearts &&
-            [
-              [60, 20, 0],
-              [100, 0, 0.4],
-              [140, 20, 0.8],
-            ].map(([x, y, d], i) => (
-              <Heart
-                key={i}
-                className="buddy-float"
-                style={{ animationDelay: `${d}s` }}
-                x={x}
-                y={y}
-                size={1.2}
-                fill="#ff8aa0"
+            {mood === "sleepy" && (
+              <g fill={palette.body} stroke="#555" strokeWidth="2.5">
+                {[72, 128].map((cx) => (
+                  <path
+                    key={cx}
+                    d={`M${cx - 14} 118 L${cx + 14} 118 L${cx + 14} 112 Q${cx} 100 ${cx - 14} 112 Z`}
+                  />
+                ))}
+              </g>
+            )}
+
+            {/* cheeks */}
+            <ellipse
+              cx="52"
+              cy="148"
+              rx="11"
+              ry="7"
+              fill="#ff9db4"
+              opacity={hugging || mood === "love" ? 0.95 : 0.6}
+            />
+            <ellipse
+              cx="148"
+              cy="148"
+              rx="11"
+              ry="7"
+              fill="#ff9db4"
+              opacity={hugging || mood === "love" ? 0.95 : 0.6}
+            />
+
+            {/* mouth */}
+            {open ? (
+              <g>
+                <path
+                  d="M82 148 Q100 180 118 148 Z"
+                  fill="#7a2a3a"
+                  stroke="#555"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M90 162 Q100 172 110 162 Q100 158 90 162 Z"
+                  fill="#ff8aa0"
+                />
+              </g>
+            ) : (
+              <path
+                d="M84 152 Q100 168 116 152"
+                fill="none"
+                stroke="#555"
+                strokeWidth="3.5"
+                strokeLinecap="round"
               />
-            ))}
+            )}
+
+            {/* arms + heart */}
+            <path
+              className="buddy-arm-l"
+              d="M32 196 C50 200 66 214 84 232"
+              fill="none"
+              stroke={palette.edge}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+            <path
+              className="buddy-arm-r"
+              d="M168 196 C150 200 134 214 116 232"
+              fill="none"
+              stroke={palette.edge}
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+            <Heart className="buddy-heart" x={100} y={226} size={3.2} />
+
+            <Accessory kind={accessory} />
+
+            {mood === "sleepy" &&
+              [
+                [150, 30, 0],
+                [168, 10, 0.6],
+              ].map(([x, y, d], i) => (
+                <text
+                  key={i}
+                  className="buddy-zzz"
+                  style={{ animationDelay: `${d}s` }}
+                  x={x}
+                  y={y}
+                  fontSize="22"
+                  fontWeight="700"
+                  fill="#7c8db5"
+                >
+                  z
+                </text>
+              ))}
+
+            {showHearts &&
+              [
+                [60, 20, 0],
+                [100, 0, 0.4],
+                [140, 20, 0.8],
+              ].map(([x, y, d], i) => (
+                <Heart
+                  key={i}
+                  className="buddy-float"
+                  style={{ animationDelay: `${d}s` }}
+                  x={x}
+                  y={y}
+                  size={1.2}
+                  fill="#ff8aa0"
+                />
+              ))}
+          </g>
         </g>
       </svg>
     </button>

@@ -9,8 +9,23 @@
   touch-action: manipulation;
   user-select: none;
 }
+.buddy {
+  -webkit-touch-callout: none;
+}
 .buddy svg {
   overflow: visible;
+}
+.buddy-squish {
+  transform-origin: 50% 100%;
+  transition: transform 140ms ease-out;
+}
+/* Squeeze: wider and shorter, like pressing a soft toy. */
+.buddy--pressed .buddy-squish {
+  transform: scale(1.1, 0.8);
+}
+/* Spring back with a couple of wobbles. */
+.buddy--boing .buddy-squish {
+  animation: buddy-boing 0.7s ease-out;
 }
 .buddy * {
   transform-box: fill-box;
@@ -102,6 +117,23 @@
   animation: buddy-float 1.6s ease-out infinite;
 }
 
+@keyframes buddy-boing {
+  0% {
+    transform: scale(1.1, 0.8);
+  }
+  30% {
+    transform: scale(0.93, 1.1);
+  }
+  55% {
+    transform: scale(1.04, 0.96);
+  }
+  80% {
+    transform: scale(0.99, 1.02);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
 @keyframes buddy-bob {
   0%,
   100% {
@@ -272,6 +304,7 @@
   .buddy *,
   .buddy-float {
     animation: none !important;
+    transition: none !important;
   }
   .buddy-float {
     opacity: 0.9;

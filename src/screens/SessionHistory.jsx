@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import Buddy from "../buddy/Buddy.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
 
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, {
@@ -18,6 +20,7 @@ function formatDate(ts) {
 export default function SessionHistory({ listId, onNavigate }) {
   const [list, setList] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const buddyStyle = useBuddyStyle();
   // Delete is undoable, same pattern as deleting a list or a word: hide it
   // immediately, only actually remove it (and its attempts and marks — see
   // storage/index.js's deleteSession) after a few seconds with no Undo.
@@ -62,6 +65,15 @@ export default function SessionHistory({ listId, onNavigate }) {
         title={`${list.name} — practice history`}
         onBack={() => onNavigate("lists", { mode: "review" })}
         backLabel="Back to lists"
+        actions={
+          <Buddy
+            mood={sessions.length > 0 ? "cheer" : "idle"}
+            color={buddyStyle.color}
+            accessory={buddyStyle.accessory}
+            size={36}
+            label="Buddy"
+          />
+        }
       />
       {sessions.length === 0 ? (
         <p className="text-slate-400">No practice sessions yet.</p>

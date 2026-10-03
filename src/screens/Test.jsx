@@ -280,7 +280,9 @@ export default function Test({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1" onPointerMove={trackPointer}
+      <div
+        className="min-h-0 flex-1"
+        onPointerMove={trackPointer}
         onPointerDown={trackPointer}
       >
         <Whiteboard

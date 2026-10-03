@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import Buddy from "../buddy/Buddy.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
 
 export default function ParentMenu({ onNavigate }) {
   const [childName, setChildName] = useState("");
+  const buddyStyle = useBuddyStyle();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [backupMessage, setBackupMessage] = useState(null);
@@ -67,7 +70,19 @@ export default function ParentMenu({ onNavigate }) {
     <Screen max="max-w-2xl">
       {/* Back moved from the bottom of the stack into the standard header,
           so every screen in the app now dismisses from the same place. */}
-      <PageHeader title="Parents" onBack={() => onNavigate("home")} />
+      <PageHeader
+        title="Parents"
+        onBack={() => onNavigate("home")}
+        actions={
+          <Buddy
+            mood="idle"
+            color={buddyStyle.color}
+            accessory={buddyStyle.accessory}
+            size={36}
+            label="Buddy"
+          />
+        }
+      />
       <div className="flex flex-1 flex-col items-center justify-center gap-5 overflow-y-auto py-2">
         <div className="card w-full max-w-sm">
           <p className="t-label mb-2">Child's name</p>

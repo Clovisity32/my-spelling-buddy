@@ -8,6 +8,13 @@ import {
   isUnlocked,
 } from "../buddy/unlocks.js";
 
+const LOVE_LINES = [
+  "Ooh, I love it!",
+  "So pretty!",
+  "Wow, look at me!",
+  "That's my favourite!",
+];
+
 // Pick Buddy's colour and accessory. Choices unlock with completed
 // practices (effort only) — locked ones stay visible with how many more it
 // takes, so there's always something to look forward to. Changes save the
@@ -31,6 +38,9 @@ export default function DressUp({ onNavigate }) {
     setStyle(next);
     await window.__storage.setBuddyStyle(next);
     window.__audio.playBuddyNote?.(Math.floor(Math.random() * 7));
+    window.__audio.buddySay?.(
+      LOVE_LINES[Math.floor(Math.random() * LOVE_LINES.length)],
+    );
     setMood("cheer");
     setTimeout(() => setMood("wave"), 1600);
   }

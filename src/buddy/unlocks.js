@@ -20,3 +20,21 @@ export const ACCESSORY_UNLOCKS = [
 ];
 
 export const isUnlocked = (item, total) => item.threshold <= total;
+
+// Everything that opens exactly at this practice count (none for 0), for the
+// "Buddy has something new!" moment on Celebration.
+export function getJustUnlocked(total) {
+  if (total <= 0) return [];
+  return [
+    ...COLOR_UNLOCKS.filter((c) => c.threshold === total).map((c) => ({
+      id: c.id,
+      label: `${c.label} colour`,
+      emoji: "🎨",
+    })),
+    ...ACCESSORY_UNLOCKS.filter((a) => a.threshold === total).map((a) => ({
+      id: a.id,
+      label: a.label,
+      emoji: a.emoji,
+    })),
+  ];
+}

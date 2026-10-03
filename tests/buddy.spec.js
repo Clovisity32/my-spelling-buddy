@@ -116,7 +116,9 @@ test("the celebration shows the Buddy family and each one plays its own note", a
 test("with reduced motion on, Buddy stops moving", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Buddy", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toBeVisible();
   const name = await page.evaluate(
     () => getComputedStyle(document.querySelector(".buddy-bob")).animationName,
   );
@@ -148,8 +150,12 @@ test("Dress up Buddy: choices are locked until earned, and a pick persists acros
   await page.getByRole("button", { name: "Dress up Buddy" }).click();
 
   // 2 practices: sky + crown + sunglasses are open; party hat needs 4.
-  await expect(page.getByRole("button", { name: "Party hat, locked" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Rose colour, locked" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Party hat, locked" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Rose colour, locked" }),
+  ).toBeDisabled();
 
   await page.getByRole("button", { name: "Lavender colour" }).click();
   await page.getByRole("button", { name: "Crown" }).click();
@@ -226,10 +232,9 @@ test("Buddy dances on Home once she has a 3-day practice streak", async ({
 
 test("a fresh install is not sleepy and does not dance", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Buddy", exact: true })).toHaveAttribute(
-    "data-buddy-mood",
-    "wave",
-  );
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "wave");
 });
 
 test("Buddy waves gently if the board sits untouched on the practice screen", async ({
@@ -250,4 +255,74 @@ test("Buddy waves gently if the board sits untouched on the practice screen", as
     isPrimary: true,
   });
   await expect(buddy).toHaveAttribute("data-buddy-mood", "idle");
+});
+
+test("holding Buddy gives it a hug (purr, happy eyes) and letting go gives an aww, not a tap reaction", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.__events = [];
+    window.__audio.startBuddyPurr = async () => {
+      window.__events.push("purr");
+      return () => window.__events.push("purr-stop");
+    };
+    window.__audio.playBuddyAww = () => window.__events.push("aww");
+    window.__audio.playBuddyGiggle = () => window.__events.push("giggle");
+  });
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const box = await buddy.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(buddy).toHaveClass(/buddy--pressed/);
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "hug");
+  await page.mouse.up();
+  await expect(buddy).not.toHaveAttribute("data-buddy-mood", "hug");
+  await expect(buddy).toHaveClass(/buddy--boing/);
+  // The click that follows a long press must not also giggle.
+  expect(await page.evaluate(() => window.__events)).toEqual([
+    "purr",
+    "purr-stop",
+    "aww",
+  ]);
+});
+
+test("a quick tap squishes and giggles but does not hug", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.__events = [];
+    window.__audio.startBuddyPurr = async () => {
+      window.__events.push("purr");
+      return () => {};
+    };
+    window.__audio.playBuddyGiggle = () => window.__events.push("giggle");
+    window.__audio.buddySay = () => {};
+  });
+  await page.getByRole("button", { name: "Buddy", exact: true }).click();
+  expect(await page.evaluate(() => window.__events)).toEqual(["giggle"]);
+});
+
+test("Celebration announces what Buddy just unlocked, and links to dress-up", async ({
+  page,
+}) => {
+  await seedList(page, "Unlock Party");
+  // This is her 1st practice: the sky colour and the crown open at 1.
+  await scribble(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Next word" }).click();
+  await expect(page.getByText(/Buddy has something new/)).toBeVisible();
+  await expect(page.getByText("Crown")).toBeVisible();
+  await page.getByRole("button", { name: "Dress up Buddy" }).click();
+  await expect(page.getByText("Dress up Buddy").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Crown" })).toBeEnabled();
+});
+
+test("Buddy appears in the Parents and history headers too", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Parents" }).click();
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toBeVisible();
 });

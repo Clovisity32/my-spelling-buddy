@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import BuddyFamily from "../buddy/BuddyFamily.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
+import { getJustUnlocked } from "../buddy/unlocks.js";
 import { getJustEarnedSticker } from "../stickers.js";
 
 function ordinal(n) {
@@ -21,13 +22,37 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [streak, setStreak] = useState(0);
   const [practiceNumber, setPracticeNumber] = useState(1);
   const [newSticker, setNewSticker] = useState(null);
+  const [unlocked, setUnlocked] = useState([]);
   const buddyStyle = useBuddyStyle();
 
   useEffect(() => {
     window.__audio.playFanfare();
     // The fanfare is ~0.6s; start the tune once it has finished.
-    const songTimer = setTimeout(() => window.__audio.playBuddySong?.(), 700);
+    const timers = [];
+    let songMs = 8000;
+    timers.push(
+      setTimeout(async () => {
+        songMs = (await window.__audio.playBuddySong?.()) || songMs;
+      }, 700),
+    );
     (async () => {
+      // Opens-at-exactly-this-count unlocks (colours, accessories) don't
+      // depend on the sticker setting. Buddy announces them once the tune
+      // has finished, so the voice isn't talking over the music.
+      const total = await window.__storage.getTotalCompletedSessionCount();
+      const fresh = getJustUnlocked(total);
+      setUnlocked(fresh);
+      if (fresh.length > 0) {
+        timers.push(
+          setTimeout(
+            () =>
+              window.__audio.buddySay?.(
+                "Yay! I have something new to wear! Come and see!",
+              ),
+            700 + songMs + 300,
+          ),
+        );
+      }
       const words = await window.__storage.getWords(listId);
       setWordCount(words.length);
       setChildName(await window.__storage.getChildName());
@@ -39,7 +64,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
         setNewSticker(getJustEarnedSticker(total));
       }
     })();
-    return () => clearTimeout(songTimer);
+    return () => timers.forEach(clearTimeout);
   }, [listId, sessionId]);
 
   return (
@@ -77,6 +102,25 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
           <p className="mt-2 text-sm font-semibold text-amber-600">
             🔥 {streak}-day practice streak!
           </p>
+        )}
+        {unlocked.length > 0 && (
+          <div className="mt-3 text-base text-sky-700">
+            <p>
+              Buddy has something new:{" "}
+              {unlocked.map((u) => (
+                <span key={u.id} className="whitespace-nowrap font-semibold">
+                  <span className="text-2xl">{u.emoji}</span> {u.label}{" "}
+                </span>
+              ))}
+            </p>
+            <button
+              type="button"
+              onClick={() => onNavigate("dressUp")}
+              className="btn btn-secondary btn-sm mt-2"
+            >
+              🎨 Dress up Buddy
+            </button>
+          </div>
         )}
         {newSticker && (
           <p className="mt-3 text-base text-violet-600">

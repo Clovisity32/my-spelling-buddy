@@ -6,6 +6,7 @@ import * as storage from "./storage/index.js";
 import * as audioContext from "./audio/context.js";
 import * as sounds from "./audio/sounds.js";
 import * as recorder from "./audio/recorder.js";
+import * as buddyHug from "./audio/buddy-hug.js";
 import * as playback from "./audio/playback.js";
 import * as tts from "./audio/tts.js";
 import * as strokes from "./canvas/strokes.js";
@@ -16,6 +17,7 @@ if (typeof window !== "undefined") {
   window.__audio = {
     ...audioContext,
     ...sounds,
+    ...buddyHug,
     ...recorder,
     ...playback,
     ...tts,
