@@ -3,6 +3,7 @@ import StrokeReplay from "../canvas/StrokeReplay.jsx";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Buddy from "../buddy/Buddy.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
 
 export default function Review({ sessionId, focusWordId, onNavigate }) {
   const [session, setSession] = useState(null);
@@ -15,6 +16,7 @@ export default function Review({ sessionId, focusWordId, onNavigate }) {
   const [justMarkedId, setJustMarkedId] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
   const cardRefs = useRef({});
+  const buddyStyle = useBuddyStyle();
 
   async function refresh() {
     const s = await window.__storage.getSession(sessionId);
@@ -108,7 +110,8 @@ export default function Review({ sessionId, focusWordId, onNavigate }) {
             )}
             <Buddy
               mood={justMarkedId ? "love" : "idle"}
-              color="peach"
+              color={buddyStyle.color}
+              accessory={buddyStyle.accessory}
               size={36}
               label="Buddy"
             />

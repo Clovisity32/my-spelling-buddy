@@ -315,6 +315,28 @@ export async function setStickersEnabled(enabled) {
   });
 }
 
+// Which colour and accessory Buddy is wearing. A third settings row, since
+// it's neither the child's identity ("profile") nor a feature flag
+// ("features"). What's *available* is derived from the completed-session
+// count (see buddy/unlocks.js), never stored, so it can't drift from
+// actual practice.
+export async function getBuddyStyle() {
+  const row = await idb.get("settings", "buddy");
+  return { color: row?.color || "peach", accessory: row?.accessory || "none" };
+}
+
+export async function setBuddyStyle({ color, accessory }) {
+  await idb.put("settings", { id: "buddy", color, accessory });
+}
+
+// Timestamp of the most recent completed practice, or null if she has never
+// finished one — Buddy uses it to be sleepy after a long gap.
+export async function getLastPracticeAt() {
+  const sessions = await idb.getAll("sessions");
+  const times = sessions.filter((s) => s.completedAt).map((s) => s.completedAt);
+  return times.length ? Math.max(...times) : null;
+}
+
 // --- Backup / restore ---------------------------------------------------
 // Everything lives in IndexedDB on one device with no sync, and IndexedDB
 // can be evicted (storage pressure, "clear site data", iOS Safari's 7-day

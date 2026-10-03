@@ -67,6 +67,16 @@
 .buddy--love .buddy-heart {
   animation: buddy-beat 0.45s ease-in-out infinite;
 }
+.buddy--sleepy .buddy-bob {
+  animation: buddy-sleepy 4.5s ease-in-out infinite;
+}
+.buddy--sleepy .buddy-eyes {
+  animation: none;
+}
+.buddy-zzz {
+  opacity: 0;
+  animation: buddy-zzz 2.4s ease-out infinite;
+}
 .buddy--dance .buddy-bob {
   animation: buddy-dance 0.9s ease-in-out infinite;
 }
@@ -218,6 +228,28 @@
   }
   75% {
     transform: rotate(0) translateY(-10px);
+  }
+}
+@keyframes buddy-sleepy {
+  0%,
+  100% {
+    transform: rotate(-2deg) translateY(2px);
+  }
+  50% {
+    transform: rotate(2deg) translateY(5px);
+  }
+}
+@keyframes buddy-zzz {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(1.2);
   }
 }
 @keyframes buddy-float {

@@ -10,6 +10,7 @@ import Celebration from "./screens/Celebration.jsx";
 import Review from "./screens/Review.jsx";
 import SessionHistory from "./screens/SessionHistory.jsx";
 import Stickers from "./screens/Stickers.jsx";
+import DressUp from "./screens/DressUp.jsx";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -83,6 +84,7 @@ export default function App() {
         <SessionHistory listId={params.listId} onNavigate={navigate} />
       )}
       {screen === "stickers" && <Stickers onNavigate={navigate} />}
+      {screen === "dressUp" && <DressUp onNavigate={navigate} />}
     </div>
   );
 }

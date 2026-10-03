@@ -35,7 +35,7 @@ test("Buddy waves on Home and reacts to a tap with a giggle", async ({
   page,
 }) => {
   await page.goto("/");
-  const buddy = page.getByRole("button", { name: "Buddy" });
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
   await expect(buddy).toBeVisible();
   await expect(buddy).toHaveAttribute("data-buddy-mood", "wave");
 
@@ -55,7 +55,7 @@ test("on the practice screen Buddy listens, goes slow for the hint, and cheers o
   page,
 }) => {
   await seedList(page, "Buddy Practice");
-  const buddy = page.getByRole("button", { name: "Buddy" });
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
   await expect(buddy).toHaveAttribute("data-buddy-mood", "idle");
 
   // A playback that never finishes keeps the mood on while we look at it.
@@ -116,9 +116,138 @@ test("the celebration shows the Buddy family and each one plays its own note", a
 test("with reduced motion on, Buddy stops moving", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Buddy" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Buddy", exact: true })).toBeVisible();
   const name = await page.evaluate(
     () => getComputedStyle(document.querySelector(".buddy-bob")).animationName,
   );
   expect(name).toBe("none");
+});
+
+async function completeSessions(page, n) {
+  await page.goto("/");
+  await page.evaluate(async (count) => {
+    const list = await window.__storage.createList("Unlock List");
+    const blob = new Blob(["a"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "owl",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+    for (let i = 0; i < count; i++) {
+      const s = await window.__storage.startSession(list.id);
+      await window.__storage.completeSession(s.id ?? s);
+    }
+  }, n);
+  await page.goto("/");
+}
+
+test("Dress up Buddy: choices are locked until earned, and a pick persists across reload", async ({
+  page,
+}) => {
+  await completeSessions(page, 2);
+  await page.getByRole("button", { name: "Dress up Buddy" }).click();
+
+  // 2 practices: sky + crown + sunglasses are open; party hat needs 4.
+  await expect(page.getByRole("button", { name: "Party hat, locked" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Rose colour, locked" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Lavender colour" }).click();
+  await page.getByRole("button", { name: "Crown" }).click();
+  await expect(page.getByRole("button", { name: "Crown" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // Wait for the write to land before reloading, or the reload can cut it off.
+  await expect
+    .poll(() => page.evaluate(() => window.__storage.getBuddyStyle()))
+    .toEqual({ color: "lavender", accessory: "crown" });
+  await page.reload();
+  expect(await page.evaluate(() => window.__storage.getBuddyStyle())).toEqual({
+    color: "lavender",
+    accessory: "crown",
+  });
+
+  // The choice shows up on Home's Buddy (crown path is only drawn when worn).
+  await expect(page.locator(".buddy svg path[fill='#ffd54a']")).toHaveCount(1);
+});
+
+// storage's functions can't be stubbed (window.__storage is a module
+// namespace), so back-date real sessions straight in IndexedDB instead.
+async function backdateSessions(page, daysAgo) {
+  await page.evaluate(async (days) => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open("spelling-buddy");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const tx = db.transaction("sessions", "readwrite");
+    const store = tx.objectStore("sessions");
+    const all = await new Promise((res) => {
+      const r = store.getAll();
+      r.onsuccess = () => res(r.result);
+    });
+    all.forEach((s, i) =>
+      store.put({ ...s, completedAt: Date.now() - days[i] * 86400000 }),
+    );
+    await new Promise((res) => (tx.oncomplete = res));
+    db.close();
+  }, daysAgo);
+  await page.goto("/");
+}
+
+test("Buddy is sleepy after a few days away, and wakes up on a tap", async ({
+  page,
+}) => {
+  await completeSessions(page, 1);
+  await backdateSessions(page, [5]);
+  await page.evaluate(() => {
+    window.__audio.buddySay = () => {};
+  });
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "sleepy");
+  await expect(page.getByText("Zzz")).toBeVisible();
+
+  await buddy.click();
+  await expect(page.getByText(/I missed you/)).toBeVisible();
+  await expect(buddy).not.toHaveAttribute("data-buddy-mood", "sleepy");
+});
+
+test("Buddy dances on Home once she has a 3-day practice streak", async ({
+  page,
+}) => {
+  await completeSessions(page, 3);
+  await backdateSessions(page, [0, 1, 2]);
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "dance");
+  await expect(page.getByText(/3 days in a row/)).toBeVisible();
+});
+
+test("a fresh install is not sleepy and does not dance", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Buddy", exact: true })).toHaveAttribute(
+    "data-buddy-mood",
+    "wave",
+  );
+});
+
+test("Buddy waves gently if the board sits untouched on the practice screen", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await seedList(page, "Buddy Nudge");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "idle");
+  await page.clock.fastForward(30000);
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "wave");
+  // Touching the board settles it again.
+  await page.locator("canvas").dispatchEvent("pointermove", {
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: 200,
+    clientY: 300,
+    isPrimary: true,
+  });
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "idle");
 });

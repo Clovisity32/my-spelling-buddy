@@ -12,7 +12,17 @@ const MEMBERS = [
   { color: "coral", size: 80, left: "82%", bottom: "-6%", z: 4, delay: 0.25 },
 ];
 
-export default function BuddyFamily({ mood = "dance", className = "" }) {
+const LEAD = 4;
+
+// The centre (biggest) member is Chloe's own Buddy, wearing what she chose;
+// anyone else who'd share its colour swaps to peach so the family stays
+// distinct.
+export default function BuddyFamily({
+  mood = "dance",
+  leadColor = "peach",
+  leadAccessory = "none",
+  className = "",
+}) {
   return (
     <div
       className={`relative mx-auto h-56 w-full max-w-md sm:h-64 ${className}`}
@@ -33,7 +43,14 @@ export default function BuddyFamily({ mood = "dance", className = "" }) {
           <div style={{ animationDelay: `${m.delay}s` }}>
             <Buddy
               mood={mood}
-              color={m.color}
+              color={
+                i === LEAD
+                  ? leadColor
+                  : m.color === leadColor
+                    ? "peach"
+                    : m.color
+              }
+              accessory={i === LEAD ? leadAccessory : "none"}
               size={m.size * 0.62}
               pitch={0.8 + i * 0.09}
               label={`${m.color} buddy`}

@@ -4,6 +4,11 @@ import { getRandomPraise } from "../praise.js";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Buddy from "../buddy/Buddy.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
+
+// How long the board can sit untouched before Buddy gently waves to say
+// "take your time — I'm here".
+const NUDGE_AFTER_MS = 25000;
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -43,7 +48,10 @@ export default function Test({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isHintPlaying, setIsHintPlaying] = useState(false);
   const [lookAt, setLookAt] = useState(null);
+  const [nudge, setNudge] = useState(false);
+  const buddyStyle = useBuddyStyle();
   const wbRef = useRef(null);
+  const lastActive = useRef(Date.now());
 
   useEffect(() => {
     (async () => {
@@ -56,6 +64,17 @@ export default function Test({
   useEffect(() => {
     (async () => setChildName(await window.__storage.getChildName()))();
   }, []);
+
+  // Idle check: a ref + slow interval, so pointer activity never causes a
+  // re-render just to say "still drawing".
+  useEffect(() => {
+    lastActive.current = Date.now();
+    setNudge(false);
+    const t = setInterval(() => {
+      setNudge(Date.now() - lastActive.current >= NUDGE_AFTER_MS);
+    }, 2000);
+    return () => clearInterval(t);
+  }, [index]);
 
   if (!words) return null;
   if (words.length === 0) {
@@ -113,6 +132,8 @@ export default function Test({
   // Buddy's eyes follow the pencil. Quantised so a stream of pointer events
   // only re-renders when the gaze actually changes.
   function trackPointer(e) {
+    lastActive.current = Date.now();
+    if (nudge) setNudge(false);
     const x = Math.round(((e.clientX / window.innerWidth) * 2 - 1) * 4) / 4;
     const y = Math.round(((e.clientY / window.innerHeight) * 2 - 1) * 4) / 4;
     setLookAt((p) => (p && p.x === x && p.y === y ? p : { x, y }));
@@ -124,7 +145,9 @@ export default function Test({
       ? "slow"
       : isPlayingAudio
         ? "listen"
-        : "idle";
+        : nudge
+          ? "wave"
+          : "idle";
 
   async function save() {
     const strokes = wbRef.current.getStrokes();
@@ -247,7 +270,8 @@ export default function Test({
           <div className="absolute bottom-0 left-0 origin-bottom-left short:scale-[0.7]">
             <Buddy
               mood={buddyMood}
-              color="peach"
+              color={buddyStyle.color}
+              accessory={buddyStyle.accessory}
               size={52}
               lookAt={lookAt}
               label="Buddy"
@@ -256,7 +280,9 @@ export default function Test({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1" onPointerMove={trackPointer}>
+      <div className="min-h-0 flex-1" onPointerMove={trackPointer}
+        onPointerDown={trackPointer}
+      >
         <Whiteboard
           key={word.id}
           ref={wbRef}

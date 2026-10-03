@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
+
+// Days without a finished practice before Buddy gets sleepy, and the streak
+// length that earns a victory dance.
+const SLEEPY_AFTER_DAYS = 3;
+const DANCE_STREAK = 3;
 
 const BUDDY_LINES = [
   "Ready to spell?",
@@ -16,6 +22,10 @@ export default function Home({ onNavigate }) {
   const [stickersEnabled, setStickersEnabled] = useState(false);
   const [childName, setChildName] = useState("");
   const [bubble, setBubble] = useState(null);
+  const [woke, setWoke] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [daysAway, setDaysAway] = useState(0);
+  const buddyStyle = useBuddyStyle();
 
   useEffect(() => {
     (async () => {
@@ -27,9 +37,38 @@ export default function Home({ onNavigate }) {
     (async () =>
       setStickersEnabled(await window.__storage.getStickersEnabled()))();
     (async () => setChildName(await window.__storage.getChildName()))();
+    // Both reads are issued together at mount (not one after the other), so
+    // every request is in flight before the first await settles.
+    (async () =>
+      setStreak(await window.__storage.getPracticeStreak()))();
+    (async () => {
+      const last = await window.__storage.getLastPracticeAt();
+      setDaysAway(last ? Math.floor((Date.now() - last) / 86400000) : 0);
+    })();
   }, []);
 
+  // Never-practised (daysAway 0) is a fresh start, not "sleepy". Sleepy is a
+  // gentle "I missed you", never a scolding — and one tap wakes Buddy up.
+  const sleepy = daysAway >= SLEEPY_AFTER_DAYS && !woke;
+  const buddyMood = sleepy
+    ? "sleepy"
+    : streak >= DANCE_STREAK
+      ? "dance"
+      : "wave";
+  const greeting = sleepy
+    ? "Zzz… oh! Is that you?"
+    : streak >= DANCE_STREAK
+      ? `${streak} days in a row! Let's dance!`
+      : `Hi${childName ? ` ${childName}` : ""}!`;
+
   function buddyTapped() {
+    if (sleepy) {
+      setWoke(true);
+      const line = "I missed you! Let's practise!";
+      setBubble(line);
+      window.__audio.buddySay?.(line);
+      return;
+    }
     const line = BUDDY_LINES[Math.floor(Math.random() * BUDDY_LINES.length)];
     setBubble(line);
     window.__audio.buddySay?.(line);
@@ -45,8 +84,9 @@ export default function Home({ onNavigate }) {
 
       <div className="flex items-end justify-center gap-2">
         <Buddy
-          mood="wave"
-          color="peach"
+          mood={buddyMood}
+          color={buddyStyle.color}
+          accessory={buddyStyle.accessory}
           size={110}
           label="Buddy"
           onTap={buddyTapped}
@@ -55,7 +95,7 @@ export default function Home({ onNavigate }) {
           aria-live="polite"
           className="mb-16 max-w-[12rem] rounded-2xl rounded-bl-none bg-white px-4 py-2 text-base font-semibold text-slate-700 shadow-md"
         >
-          {bubble || `Hi${childName ? ` ${childName}` : ""}!`}
+          {bubble || greeting}
         </p>
       </div>
 
@@ -99,6 +139,14 @@ export default function Home({ onNavigate }) {
           Parents
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => onNavigate("dressUp")}
+        className="btn btn-secondary btn-sm"
+      >
+        🎨 Dress up Buddy
+      </button>
 
       {stickersEnabled && (
         <button

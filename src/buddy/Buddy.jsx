@@ -33,12 +33,73 @@ function Heart({ x, y, size = 1, fill = "#ff5c7a", className, style }) {
   );
 }
 
-// mood: idle | wave | listen | slow | cheer | love | dance
+function Accessory({ kind }) {
+  switch (kind) {
+    case "crown":
+      return (
+        <path
+          d="M72 40 L78 12 L90 28 L100 6 L110 28 L122 12 L128 40 Z"
+          fill="#ffd54a"
+          stroke="#d9a400"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+      );
+    case "glasses":
+      return (
+        <g fill="#2b2b3a" stroke="#2b2b3a" strokeWidth="3">
+          <rect x="52" y="108" width="40" height="24" rx="10" />
+          <rect x="108" y="108" width="40" height="24" rx="10" />
+          <path d="M92 118 L108 118" fill="none" />
+          <path d="M60 114 L70 112" stroke="#fff" opacity="0.6" />
+        </g>
+      );
+    case "hat":
+      return (
+        <g stroke="#b04a9c" strokeWidth="3" strokeLinejoin="round">
+          <path d="M70 40 L100 -18 L130 40 Z" fill="#ff9ad5" />
+          <circle cx="100" cy="-20" r="7" fill="#ffd54a" />
+          <path d="M82 22 L118 22" stroke="#fff" strokeWidth="4" />
+        </g>
+      );
+    case "flower":
+      return (
+        <g transform="translate(140 34)">
+          {[0, 72, 144, 216, 288].map((a) => (
+            <circle
+              key={a}
+              cx="0"
+              cy="-9"
+              r="7"
+              fill="#ff9ec4"
+              stroke="#e0709b"
+              strokeWidth="1.5"
+              transform={`rotate(${a})`}
+            />
+          ))}
+          <circle r="5" fill="#ffd54a" />
+        </g>
+      );
+    case "headphones":
+      return (
+        <g fill="none" stroke="#4a5568" strokeWidth="5" strokeLinecap="round">
+          <path d="M30 98 Q30 28 100 28 Q170 28 170 98" />
+          <rect x="22" y="92" width="16" height="30" rx="7" fill="#ff7a7a" />
+          <rect x="162" y="92" width="16" height="30" rx="7" fill="#ff7a7a" />
+        </g>
+      );
+    default:
+      return null;
+  }
+}
+
+// mood: idle | wave | listen | slow | cheer | love | dance | sleepy
 // lookAt: {x, y} in -1..1 — pupils follow it, in any mood, so Buddy can
 // watch the pencil while otherwise idle.
 export default function Buddy({
   mood = "idle",
   color = "peach",
+  accessory = "none",
   size = 160,
   lookAt = null,
   pitch = 1,
@@ -207,6 +268,17 @@ export default function Buddy({
             ))}
           </g>
 
+          {mood === "sleepy" && (
+            <g fill={palette.body} stroke="#555" strokeWidth="2.5">
+              {[72, 128].map((cx) => (
+                <path
+                  key={cx}
+                  d={`M${cx - 14} 118 L${cx + 14} 118 L${cx + 14} 112 Q${cx} 100 ${cx - 14} 112 Z`}
+                />
+              ))}
+            </g>
+          )}
+
           {/* cheeks */}
           <ellipse
             cx="52"
@@ -268,6 +340,27 @@ export default function Buddy({
             strokeLinecap="round"
           />
           <Heart className="buddy-heart" x={100} y={226} size={3.2} />
+
+          <Accessory kind={accessory} />
+
+          {mood === "sleepy" &&
+            [
+              [150, 30, 0],
+              [168, 10, 0.6],
+            ].map(([x, y, d], i) => (
+              <text
+                key={i}
+                className="buddy-zzz"
+                style={{ animationDelay: `${d}s` }}
+                x={x}
+                y={y}
+                fontSize="22"
+                fontWeight="700"
+                fill="#7c8db5"
+              >
+                z
+              </text>
+            ))}
 
           {showHearts &&
             [

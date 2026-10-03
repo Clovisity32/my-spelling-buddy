@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import BuddyFamily from "../buddy/BuddyFamily.jsx";
+import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import { getJustEarnedSticker } from "../stickers.js";
 
 function ordinal(n) {
@@ -20,6 +21,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [streak, setStreak] = useState(0);
   const [practiceNumber, setPracticeNumber] = useState(1);
   const [newSticker, setNewSticker] = useState(null);
+  const buddyStyle = useBuddyStyle();
 
   useEffect(() => {
     window.__audio.playFanfare();
@@ -42,7 +44,11 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
 
   return (
     <Screen centered max="max-w-2xl">
-      <BuddyFamily mood="dance" />
+      <BuddyFamily
+        mood="dance"
+        leadColor={buddyStyle.color}
+        leadAccessory={buddyStyle.accessory}
+      />
       <h2 className="text-3xl font-bold tracking-tight text-emerald-600 sm:text-4xl">
         You finished the whole list, {childName}!
       </h2>
