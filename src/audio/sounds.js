@@ -100,3 +100,110 @@ export async function playRecordStartCue() {
     gain: 0.18,
   });
 }
+
+// ---- Buddy ----------------------------------------------------------------
+
+// Pentatonic (C major) so any tap sequence sounds pleasant together.
+const BUDDY_SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+
+// Quick rising boops with a little wobble — Buddy's giggle. `pitch` (about
+// 0.8–1.3) gives each family member its own voice.
+export async function playBuddyGiggle(pitch = 1) {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  [700, 900, 800, 1050].forEach((f, i) => {
+    tone(ctx, {
+      freq: f * pitch,
+      start: now + i * 0.07,
+      duration: 0.1,
+      type: "triangle",
+      gain: 0.16,
+    });
+  });
+}
+
+// One note per family member, for the tap-the-buddies xylophone.
+export async function playBuddyNote(i = 0) {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return;
+  const freq =
+    BUDDY_SCALE[
+      ((i % BUDDY_SCALE.length) + BUDDY_SCALE.length) % BUDDY_SCALE.length
+    ];
+  const now = ctx.currentTime;
+  tone(ctx, { freq, start: now, duration: 0.45, type: "triangle", gain: 0.22 });
+  tone(ctx, {
+    freq: freq * 2,
+    start: now,
+    duration: 0.2,
+    type: "sine",
+    gain: 0.06,
+  });
+}
+
+// A cheerful ~7 second tune for the celebration: triangle lead, soft sine
+// bass on the beat, sparkle on the last note. Returns the length in ms.
+export async function playBuddySong() {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return 0;
+  const now = ctx.currentTime + 0.05;
+  const beat = 0.34;
+  // [scale index, beats]
+  const melody = [
+    [0, 1],
+    [2, 1],
+    [3, 1],
+    [5, 1],
+    [4, 1],
+    [3, 1],
+    [2, 2],
+    [1, 1],
+    [2, 1],
+    [3, 1],
+    [4, 1],
+    [3, 1],
+    [2, 1],
+    [1, 1],
+    [0, 1],
+    [2, 1],
+    [3, 1],
+    [5, 1],
+    [6, 1],
+    [5, 1],
+    [3, 1],
+    [5, 3],
+  ];
+  let t = 0;
+  melody.forEach(([n, len]) => {
+    tone(ctx, {
+      freq: BUDDY_SCALE[n],
+      start: now + t * beat,
+      duration: len * beat * 0.9,
+      type: "triangle",
+      gain: 0.2,
+    });
+    t += len;
+  });
+  const total = t;
+  for (let b = 0; b < total; b += 2) {
+    const root = [261.63, 196, 220, 174.61][Math.floor(b / 6) % 4];
+    tone(ctx, {
+      freq: root,
+      start: now + b * beat,
+      duration: beat * 1.8,
+      type: "sine",
+      gain: 0.12,
+    });
+  }
+  [2093, 2637, 3136].forEach((f, i) => {
+    tone(ctx, {
+      freq: f,
+      start: now + (total - 3) * beat + 0.2 + i * 0.1,
+      duration: 0.5,
+      type: "sine",
+      gain: 0.06,
+    });
+  });
+  return Math.round(total * beat * 1000);
+}

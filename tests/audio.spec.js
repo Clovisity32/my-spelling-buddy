@@ -98,23 +98,82 @@ test("speakWordEntry speaks a pinyin word's Chinese characters, not its romaniza
   expect(spoken).toEqual(["你好", "apple"]);
 });
 
-test("speakWordEntry's slow hint noticeably lowers the speech rate", async ({
+test("the English slow hint is one clear utterance at a moderately reduced rate", async ({
   page,
 }) => {
   await page.goto("/");
-  const rates = await page.evaluate(() => {
+  const out = await page.evaluate(async () => {
     const captured = [];
-    window.speechSynthesis.speak = (u) => captured.push(u.rate);
-    window.__audio.speakWordEntry({ text: "owl", ttsLang: "en" });
-    window.__audio.speakWordEntry(
+    window.speechSynthesis.speak = (u) => {
+      captured.push({ text: u.text, rate: u.rate });
+      setTimeout(() => u.onend && u.onend(), 0);
+    };
+    await window.__audio.speakWordEntry({ text: "owl", ttsLang: "en" });
+    await window.__audio.speakWordEntry(
       { text: "owl", ttsLang: "en" },
       { slow: true },
     );
     return captured;
   });
-  const [normalRate, slowRate] = rates;
-  expect(slowRate).toBeLessThan(normalRate);
-  expect(slowRate).toBeLessThanOrEqual(0.25);
+  expect(out).toHaveLength(2);
+  const [normal, slow] = out;
+  // Slower than normal, but not so slow the engine turns it to mush (0.25
+  // used to come out as gibberish), and never split into letters.
+  expect(slow.text).toBe("owl");
+  expect(slow.rate).toBeLessThan(normal.rate);
+  expect(slow.rate).toBeGreaterThanOrEqual(0.5);
+});
+
+test("the Mandarin slow hint speaks one syllable at a time at a clear rate", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const out = await page.evaluate(async () => {
+    const captured = [];
+    window.speechSynthesis.speak = (u) => {
+      captured.push({ text: u.text, rate: u.rate });
+      setTimeout(() => u.onend && u.onend(), 0);
+    };
+    await window.__audio.speakWordEntry(
+      { text: "nǐ hǎo", speechText: "你好", ttsLang: "zh" },
+      { slow: true },
+    );
+    await window.__audio.speakWordEntry(
+      { text: "ni3 hao3", speechText: null, ttsLang: "zh" },
+      { slow: true },
+    );
+    return captured;
+  });
+  expect(out.map((u) => u.text)).toEqual(["你", "好", "nǐ", "hǎo"]);
+  for (const u of out) {
+    expect(u.rate).toBeGreaterThanOrEqual(0.5);
+    expect(u.rate).toBeLessThan(0.9);
+  }
+});
+
+test("a recorded word's slow hint keeps its pitch instead of resampling", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const out = await page.evaluate(async () => {
+    const seen = [];
+    const origPlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      seen.push({
+        rate: this.playbackRate,
+        preservesPitch: this.preservesPitch,
+      });
+      setTimeout(() => this.onended && this.onended(), 0);
+      return Promise.resolve();
+    };
+    const blob = new Blob([new Uint8Array(64)], { type: "audio/webm" });
+    await window.__audio.playWordEntry({ audioBlob: blob }, { slow: true });
+    HTMLMediaElement.prototype.play = origPlay;
+    return seen;
+  });
+  expect(out.length).toBeGreaterThan(0);
+  expect(out[0].rate).toBe(0.6);
+  expect(out[0].preservesPitch).toBe(true);
 });
 
 test("a word's Chinese characters survive a reload and drive playback", async ({

@@ -1,10 +1,21 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
+import Buddy from "../buddy/Buddy.jsx";
+
+const BUDDY_LINES = [
+  "Ready to spell?",
+  "I love your writing!",
+  "Let's practise together!",
+  "You make me so happy!",
+  "Tee hee, that tickles!",
+];
 
 export default function Home({ onNavigate }) {
   const [latestList, setLatestList] = useState(null);
   const [latestWords, setLatestWords] = useState([]);
   const [stickersEnabled, setStickersEnabled] = useState(false);
+  const [childName, setChildName] = useState("");
+  const [bubble, setBubble] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -15,7 +26,14 @@ export default function Home({ onNavigate }) {
     })();
     (async () =>
       setStickersEnabled(await window.__storage.getStickersEnabled()))();
+    (async () => setChildName(await window.__storage.getChildName()))();
   }, []);
+
+  function buddyTapped() {
+    const line = BUDDY_LINES[Math.floor(Math.random() * BUDDY_LINES.length)];
+    setBubble(line);
+    window.__audio.buddySay?.(line);
+  }
 
   function playWord(word) {
     window.__audio.playWordEntry(word);
@@ -24,6 +42,22 @@ export default function Home({ onNavigate }) {
   return (
     <Screen centered max="max-w-2xl">
       <h1 className="t-hero">My Spelling Buddy</h1>
+
+      <div className="flex items-end justify-center gap-2">
+        <Buddy
+          mood="wave"
+          color="peach"
+          size={110}
+          label="Buddy"
+          onTap={buddyTapped}
+        />
+        <p
+          aria-live="polite"
+          className="mb-16 max-w-[12rem] rounded-2xl rounded-bl-none bg-white px-4 py-2 text-base font-semibold text-slate-700 shadow-md"
+        >
+          {bubble || `Hi${childName ? ` ${childName}` : ""}!`}
+        </p>
+      </div>
 
       {latestList && (
         <div className="card w-full text-left">

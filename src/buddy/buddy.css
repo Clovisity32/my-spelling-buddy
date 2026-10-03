@@ -1,0 +1,247 @@
+/* Buddy — every animation is transform/opacity only, so a moving Buddy can
+   never change layout (the Test screen's whiteboard must not resize). */
+
+.buddy {
+  display: inline-block;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.buddy svg {
+  overflow: visible;
+}
+.buddy * {
+  transform-box: fill-box;
+}
+
+.buddy-bob {
+  transform-origin: 50% 100%;
+  animation: buddy-bob 3.2s ease-in-out infinite;
+}
+.buddy-eyes {
+  transform-origin: 50% 50%;
+  animation: buddy-blink 4.6s infinite;
+}
+.buddy-ear-l,
+.buddy-ear-r {
+  transform-origin: 50% 90%;
+}
+.buddy-ear-r {
+  animation: buddy-ear 7s ease-in-out infinite 1.5s;
+}
+.buddy-heart {
+  transform-origin: 50% 50%;
+  animation: buddy-beat 1.6s ease-in-out infinite;
+}
+.buddy-arm-l,
+.buddy-arm-r {
+  transform-origin: 50% 80%;
+}
+
+/* ---- moods ---- */
+.buddy--wave .buddy-arm-r {
+  animation: buddy-wave 0.7s ease-in-out infinite;
+}
+.buddy--listen .buddy-bob {
+  animation: buddy-lean 1.4s ease-in-out infinite;
+}
+.buddy--listen .buddy-ear-l,
+.buddy--listen .buddy-ear-r {
+  animation: buddy-perk 0.5s ease-out forwards;
+}
+.buddy--slow .buddy-bob {
+  animation: buddy-sway 4s ease-in-out infinite;
+}
+.buddy--slow .buddy-eyes {
+  animation: none;
+  transform: scaleY(0.55);
+}
+.buddy--cheer .buddy-bob {
+  animation: buddy-jump 0.55s ease-out 3;
+}
+.buddy--love .buddy-bob {
+  animation: buddy-squish 0.6s ease-in-out 2;
+}
+.buddy--love .buddy-heart {
+  animation: buddy-beat 0.45s ease-in-out infinite;
+}
+.buddy--dance .buddy-bob {
+  animation: buddy-dance 0.9s ease-in-out infinite;
+}
+
+/* ---- tap reactions ---- */
+.buddy--r-jump .buddy-bob {
+  animation: buddy-jump 0.5s ease-out 1;
+}
+.buddy--r-spin .buddy-bob {
+  animation: buddy-spin 0.7s ease-in-out 1;
+}
+.buddy--r-ears .buddy-ear-l,
+.buddy--r-ears .buddy-ear-r {
+  animation: buddy-wiggle 0.2s ease-in-out 4;
+}
+.buddy--r-heart .buddy-heart {
+  animation: buddy-beat 0.25s ease-in-out 3;
+}
+
+.buddy-float {
+  opacity: 0;
+  transform-origin: 50% 50%;
+  animation: buddy-float 1.6s ease-out infinite;
+}
+
+@keyframes buddy-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.01, 0.995);
+  }
+}
+@keyframes buddy-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes buddy-ear {
+  0%,
+  90%,
+  100% {
+    transform: rotate(0);
+  }
+  93% {
+    transform: rotate(-12deg);
+  }
+  96% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes buddy-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+@keyframes buddy-wave {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(22deg);
+  }
+}
+@keyframes buddy-lean {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+@keyframes buddy-perk {
+  to {
+    transform: translateY(-6px) scale(1.08);
+  }
+}
+@keyframes buddy-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes buddy-jump {
+  0% {
+    transform: translateY(0) scale(1.05, 0.92);
+  }
+  45% {
+    transform: translateY(-22px) scale(0.96, 1.06);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+@keyframes buddy-squish {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.07, 0.93);
+  }
+}
+@keyframes buddy-spin {
+  0% {
+    transform: rotate(0) translateY(0);
+  }
+  50% {
+    transform: rotate(180deg) translateY(-12px);
+  }
+  100% {
+    transform: rotate(360deg) translateY(0);
+  }
+}
+@keyframes buddy-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes buddy-dance {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  25% {
+    transform: rotate(0) translateY(-10px);
+  }
+  50% {
+    transform: rotate(4deg) translateY(0);
+  }
+  75% {
+    transform: rotate(0) translateY(-10px);
+  }
+}
+@keyframes buddy-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-70px) scale(1.1);
+  }
+}
+
+/* Reduced motion: stop the movement, keep the expression changes (open
+   mouth, sleepy eyes, hearts shown statically). */
+@media (prefers-reduced-motion: reduce) {
+  .buddy *,
+  .buddy-float {
+    animation: none !important;
+  }
+  .buddy-float {
+    opacity: 0.9;
+  }
+}

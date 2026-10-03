@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
+import BuddyFamily from "../buddy/BuddyFamily.jsx";
 import { getJustEarnedSticker } from "../stickers.js";
 
 function ordinal(n) {
@@ -22,6 +23,8 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
 
   useEffect(() => {
     window.__audio.playFanfare();
+    // The fanfare is ~0.6s; start the tune once it has finished.
+    const songTimer = setTimeout(() => window.__audio.playBuddySong?.(), 700);
     (async () => {
       const words = await window.__storage.getWords(listId);
       setWordCount(words.length);
@@ -34,11 +37,12 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
         setNewSticker(getJustEarnedSticker(total));
       }
     })();
+    return () => clearTimeout(songTimer);
   }, [listId, sessionId]);
 
   return (
     <Screen centered max="max-w-2xl">
-      <p className="text-6xl sm:text-7xl">{"⭐️🎉⭐️"}</p>
+      <BuddyFamily mood="dance" />
       <h2 className="text-3xl font-bold tracking-tight text-emerald-600 sm:text-4xl">
         You finished the whole list, {childName}!
       </h2>
@@ -58,8 +62,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
       )}
 
       <div className="card w-full max-w-md">
-        <p className="text-5xl">🦉</p>
-        <p className="mt-2 text-lg font-semibold text-slate-700">
+        <p className="text-lg font-semibold text-slate-700">
           {practiceNumber > 1
             ? `This is the ${ordinal(practiceNumber)} time you've practised this list — showing up is what counts!`
             : "Every practice makes you stronger — great job showing up!"}

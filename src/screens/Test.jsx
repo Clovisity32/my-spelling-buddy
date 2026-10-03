@@ -3,6 +3,7 @@ import Whiteboard from "../canvas/Whiteboard.jsx";
 import { getRandomPraise } from "../praise.js";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import Buddy from "../buddy/Buddy.jsx";
 
 function shuffleArray(arr) {
   const a = [...arr];
@@ -41,6 +42,7 @@ export default function Test({
   const [fingerDraw, setFingerDraw] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isHintPlaying, setIsHintPlaying] = useState(false);
+  const [lookAt, setLookAt] = useState(null);
   const wbRef = useRef(null);
 
   useEffect(() => {
@@ -80,23 +82,49 @@ export default function Test({
   const word = words[index];
   const isLast = index + 1 >= words.length;
 
-  function playWord() {
-    if (!word.useTts && !word.audioBlob) return;
-    window.__audio.playWordEntry(word);
-    // A tap with no visible response reads as broken to a child who can't
-    // diagnose "volume's down" or "autoplay got blocked" — a brief pulse
-    // is at least proof the tap registered.
-    setIsPlayingAudio(true);
-    setTimeout(() => setIsPlayingAudio(false), 1400);
+  // Keeps a "playing" flag on for exactly as long as the sound lasts (the
+  // playback functions return a Promise that settles when it ends), with a
+  // cap so a sound that never reports back can't leave the button stuck.
+  function whilePlaying(setFlag, promise) {
+    setFlag(true);
+    const cap = new Promise((r) => setTimeout(r, 8000));
+    Promise.race([Promise.resolve(promise), cap])
+      .catch(() => {})
+      .then(() => setFlag(false));
   }
 
-  // The hint: same word, noticeably slower, for sounding it out.
+  function playWord() {
+    if (!word.useTts && !word.audioBlob) return;
+    // A tap with no visible response reads as broken to a child who can't
+    // diagnose "volume's down" or "autoplay got blocked" — the pulse (and
+    // Buddy perking up to listen) is proof the tap registered.
+    whilePlaying(setIsPlayingAudio, window.__audio.playWordEntry(word));
+  }
+
+  // The hint: same word, slower and broken up, for sounding it out.
   function playHint() {
     if (!word.useTts && !word.audioBlob) return;
-    window.__audio.playWordEntry(word, { slow: true });
-    setIsHintPlaying(true);
-    setTimeout(() => setIsHintPlaying(false), 1400);
+    whilePlaying(
+      setIsHintPlaying,
+      window.__audio.playWordEntry(word, { slow: true }),
+    );
   }
+
+  // Buddy's eyes follow the pencil. Quantised so a stream of pointer events
+  // only re-renders when the gaze actually changes.
+  function trackPointer(e) {
+    const x = Math.round(((e.clientX / window.innerWidth) * 2 - 1) * 4) / 4;
+    const y = Math.round(((e.clientY / window.innerHeight) * 2 - 1) * 4) / 4;
+    setLookAt((p) => (p && p.x === x && p.y === y ? p : { x, y }));
+  }
+
+  const buddyMood = praise
+    ? "cheer"
+    : isHintPlaying
+      ? "slow"
+      : isPlayingAudio
+        ? "listen"
+        : "idle";
 
   async function save() {
     const strokes = wbRef.current.getStrokes();
@@ -213,9 +241,22 @@ export default function Test({
         >
           🐢
         </button>
+        {/* Fixed-size slot: Buddy animates with transforms inside it, so it
+            can never resize the row (and with it the whiteboard below). */}
+        <div className="relative h-20 w-14 shrink-0 short:h-14 short:w-10">
+          <div className="absolute bottom-0 left-0 origin-bottom-left short:scale-[0.7]">
+            <Buddy
+              mood={buddyMood}
+              color="peach"
+              size={52}
+              lookAt={lookAt}
+              label="Buddy"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1" onPointerMove={trackPointer}>
         <Whiteboard
           key={word.id}
           ref={wbRef}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import StrokeReplay from "../canvas/StrokeReplay.jsx";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import Buddy from "../buddy/Buddy.jsx";
 
 export default function Review({ sessionId, focusWordId, onNavigate }) {
   const [session, setSession] = useState(null);
@@ -99,11 +100,19 @@ export default function Review({ sessionId, focusWordId, onNavigate }) {
         onBack={() => onNavigate("sessionHistory", { listId: list.id })}
         backLabel="Back to history"
         actions={
-          rows.length > 0 ? (
-            <p className="text-sm font-semibold text-slate-500">
-              {gotItCount} got it · {rows.length - gotItCount} to practise
-            </p>
-          ) : null
+          <div className="flex items-center gap-3">
+            {rows.length > 0 && (
+              <p className="text-sm font-semibold text-slate-500">
+                {gotItCount} got it · {rows.length - gotItCount} to practise
+              </p>
+            )}
+            <Buddy
+              mood={justMarkedId ? "love" : "idle"}
+              color="peach"
+              size={36}
+              label="Buddy"
+            />
+          </div>
         }
       />
       {/* The one screen in the app that scrolls — every other screen fits

@@ -1,0 +1,124 @@
+import { test, expect } from "@playwright/test";
+
+async function seedList(page, name) {
+  await page.goto("/");
+  await page.evaluate(async (listName) => {
+    const list = await window.__storage.createList(listName);
+    const blob = new Blob(["audio"], { type: "audio/webm" });
+    await window.__storage.addWord(list.id, {
+      text: "owl",
+      audioBlob: blob,
+      audioMime: "audio/webm",
+    });
+  }, name);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Practise" }).click();
+  await page.getByText(name).click();
+}
+
+async function scribble(page) {
+  const canvas = page.locator("canvas");
+  const box = await canvas.boundingBox();
+  const at = (dx, dy) => ({
+    pointerId: 1,
+    pointerType: "mouse",
+    clientX: box.x + dx,
+    clientY: box.y + dy,
+    isPrimary: true,
+  });
+  await canvas.dispatchEvent("pointerdown", at(10, 10));
+  await canvas.dispatchEvent("pointermove", at(60, 60));
+  await canvas.dispatchEvent("pointerup", at(60, 60));
+}
+
+test("Buddy waves on Home and reacts to a tap with a giggle", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy" });
+  await expect(buddy).toBeVisible();
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "wave");
+
+  await page.evaluate(() => {
+    window.__giggles = 0;
+    window.__audio.playBuddyGiggle = () => window.__giggles++;
+    window.__audio.buddySay = () => {};
+  });
+  await buddy.click();
+  await expect(buddy).toHaveAttribute("data-buddy-mood", /^r-/);
+  expect(await page.evaluate(() => window.__giggles)).toBe(1);
+  // Reaction ends and Buddy goes back to waving.
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "wave");
+});
+
+test("on the practice screen Buddy listens, goes slow for the hint, and cheers on Save", async ({
+  page,
+}) => {
+  await seedList(page, "Buddy Practice");
+  const buddy = page.getByRole("button", { name: "Buddy" });
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "idle");
+
+  // A playback that never finishes keeps the mood on while we look at it.
+  await page.evaluate(() => {
+    window.__audio.playWordEntry = () => new Promise(() => {});
+  });
+  await page.getByRole("button", { name: "Play the word" }).click();
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "listen");
+
+  await page.getByRole("button", { name: "Hint: say it slowly" }).click();
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "slow");
+
+  await scribble(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(buddy).toHaveAttribute("data-buddy-mood", "cheer");
+});
+
+test("the practice-screen Buddy never changes the whiteboard's size", async ({
+  page,
+}) => {
+  await seedList(page, "Buddy Layout");
+  const canvas = page.locator("canvas");
+  const before = await canvas.boundingBox();
+  await page.evaluate(() => {
+    window.__audio.playWordEntry = () => new Promise(() => {});
+  });
+  await page.getByRole("button", { name: "Hint: say it slowly" }).click();
+  await scribble(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  const after = await canvas.boundingBox();
+  expect(after.width).toBe(before.width);
+  expect(after.height).toBe(before.height);
+});
+
+test("the celebration shows the Buddy family and each one plays its own note", async ({
+  page,
+}) => {
+  await seedList(page, "Buddy Party");
+  await scribble(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Next word" }).click();
+  await expect(page.getByText(/You finished the whole list/)).toBeVisible();
+
+  const family = page.getByLabel("Buddy and friends");
+  await expect(family).toBeVisible();
+  const members = family.getByRole("button");
+  await expect(members).toHaveCount(7);
+
+  await page.evaluate(() => {
+    window.__notes = [];
+    window.__audio.playBuddyNote = (i) => window.__notes.push(i);
+  });
+  await members.nth(2).click({ force: true });
+  await members.nth(4).click({ force: true });
+  expect(await page.evaluate(() => window.__notes)).toEqual([2, 4]);
+});
+
+test("with reduced motion on, Buddy stops moving", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Buddy" })).toBeVisible();
+  const name = await page.evaluate(
+    () => getComputedStyle(document.querySelector(".buddy-bob")).animationName,
+  );
+  expect(name).toBe("none");
+});

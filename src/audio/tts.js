@@ -129,33 +129,103 @@ function pinyinForSpeech(text) {
   return toneNumbersToMarks(text.toLowerCase());
 }
 
+// Bumped by every new speak call so a "sound it out" chain that is still
+// waiting between syllables knows it has been superseded and stops.
+let speakToken = 0;
+
+// Resolves when the utterance ends or errors, with a safety timeout because
+// some engines never fire onend after cancel().
+function speakUtterance(spokenText, lang, voiceURI, rate, pitch = 1) {
+  return new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    // Re-fetch fresh voice objects right before speaking rather than reusing
+    // ones handed in earlier — some browsers only reliably honor
+    // utterance.voice when it's a voice object from the most recent
+    // getVoices() call.
+    const voices = loadVoices();
+    const voice = voiceURI
+      ? voices.find((v) => v.voiceURI === voiceURI)
+      : pickVoice(lang);
+    if (voice) {
+      try {
+        utterance.voice = voice;
+      } catch {
+        // A voice reference gone stale between listing and speaking — fall
+        // through to the plain lang-only request below rather than throwing
+        // out of an unawaited, uncaught call site.
+      }
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
+    }
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(safety);
+      resolve();
+    };
+    const safety = setTimeout(finish, 6000);
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
 export function speakWord(text, lang = "zh", voiceURI = null, rate = 0.9) {
-  if (!isSpeechSynthesisSupported() || !text) return;
+  if (!isSpeechSynthesisSupported() || !text) return Promise.resolve();
+  speakToken++;
   window.speechSynthesis.cancel(); // don't let overlapping taps queue up
   const spokenText = lang === "zh" ? pinyinForSpeech(text) : text;
-  const utterance = new SpeechSynthesisUtterance(spokenText);
-  // Re-fetch fresh voice objects right before speaking rather than reusing
-  // ones handed in earlier — some browsers only reliably honor
-  // utterance.voice when it's a voice object from the most recent
-  // getVoices() call.
-  const voices = loadVoices();
-  const voice = voiceURI
-    ? voices.find((v) => v.voiceURI === voiceURI)
-    : pickVoice(lang);
-  if (voice) {
-    try {
-      utterance.voice = voice;
-    } catch {
-      // A voice reference gone stale between listing and speaking — fall
-      // through to the plain lang-only request below rather than throwing
-      // out of an unawaited, uncaught call site.
-    }
-    utterance.lang = voice.lang;
-  } else {
-    utterance.lang = lang === "zh" ? "zh-CN" : "en-US";
+  return speakUtterance(spokenText, lang, voiceURI, rate);
+}
+
+// The practice-screen hint. Speech engines turn to mush below roughly half
+// speed (an old version asked for 0.25 and the word came out as gibberish),
+// so instead of stretching one utterance this keeps a clear voice and gets
+// its "slow" from separation: a Mandarin word is spoken one syllable at a
+// time with a pause between, an English word at a moderately reduced rate.
+// English is deliberately NOT split into letters — that would spell the word
+// out for the child.
+const SLOW_RATE_ZH = 0.6;
+const SLOW_RATE_EN = 0.5;
+const SYLLABLE_PAUSE_MS = 350;
+
+function syllablesOf(text) {
+  if (/[㐀-鿿]/.test(text)) {
+    return Array.from(text).filter((c) => /[㐀-鿿]/.test(c));
   }
-  utterance.rate = rate;
-  window.speechSynthesis.speak(utterance);
+  return pinyinForSpeech(text)
+    .split(/[\s']+/)
+    .filter(Boolean);
+}
+
+export async function speakWordSlowly(text, lang = "zh", voiceURI = null) {
+  if (!isSpeechSynthesisSupported() || !text) return;
+  const token = ++speakToken;
+  window.speechSynthesis.cancel();
+  if (lang !== "zh") {
+    await speakUtterance(text, lang, voiceURI, SLOW_RATE_EN);
+    return;
+  }
+  const parts = syllablesOf(text);
+  for (let i = 0; i < parts.length; i++) {
+    if (token !== speakToken) return; // a newer tap took over
+    await speakUtterance(parts[i], lang, voiceURI, SLOW_RATE_ZH);
+    if (i < parts.length - 1) {
+      await new Promise((r) => setTimeout(r, SYLLABLE_PAUSE_MS));
+    }
+  }
+}
+
+// A cute, higher-pitched English voice for Buddy's little spoken lines.
+export function buddySay(text) {
+  if (!isSpeechSynthesisSupported() || !text) return Promise.resolve();
+  speakToken++;
+  window.speechSynthesis.cancel();
+  return speakUtterance(text, "en", null, 1.05, 1.8);
 }
 
 // Speaks a stored word. Prefers its speechText (the Chinese characters a
@@ -164,17 +234,14 @@ export function speakWord(text, lang = "zh", voiceURI = null, rate = 0.9) {
 // storage/index.js's addWord. Every screen that plays a saved word goes
 // through here so they can't drift apart on which field wins.
 //
-// `slow` is the practice-screen "hint" — dramatically slower than the
-// normal 0.9 rate (a quarter speed, not just half), so a child can stretch
-// the word out and try to blend each sound.
+// `slow` is the practice-screen "hint" — see speakWordSlowly for why it is
+// syllable-by-syllable rather than a raw low speech rate. Returns a Promise
+// that resolves when the speech has finished.
 export function speakWordEntry(word, { slow = false } = {}) {
-  if (!word) return;
-  speakWord(
-    word.speechText || word.text,
-    word.ttsLang,
-    word.ttsVoiceURI,
-    slow ? 0.25 : 0.9,
-  );
+  if (!word) return Promise.resolve();
+  const text = word.speechText || word.text;
+  if (slow) return speakWordSlowly(text, word.ttsLang, word.ttsVoiceURI);
+  return speakWord(text, word.ttsLang, word.ttsVoiceURI, 0.9);
 }
 
 // True when the device has no Mandarin voice at all. speakWord falls back
