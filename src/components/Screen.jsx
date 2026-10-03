@@ -24,6 +24,9 @@ export default function Screen({
   // The practice screen, where every vertical pixel goes to the canvas.
   tight = false,
   className = "",
+  // Let children paint outside the content column (still clipped at the
+  // viewport edge) — for something draggable, like Buddy on Home.
+  allowOverflow = false,
 }) {
   const gutter = tight ? "0.75rem" : "1.25rem";
   return (
@@ -37,7 +40,9 @@ export default function Screen({
       }}
     >
       <div
-        className={`mx-auto flex w-full flex-1 flex-col overflow-hidden ${max} ${
+        className={`mx-auto flex w-full flex-1 flex-col ${
+          allowOverflow ? "" : "overflow-hidden"
+        } ${max} ${
           centered ? "items-center justify-center gap-8 text-center" : ""
         }`}
       >

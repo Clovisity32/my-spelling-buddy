@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
+import {
+  getPose,
+  setPose as setSavedPose,
+  isMoved,
+  ZERO_POSE,
+} from "../buddy/pose.js";
 
 // Days without a finished practice before Buddy gets sleepy, and the streak
 // length that earns a victory dance.
@@ -23,6 +29,7 @@ export default function Home({ onNavigate }) {
   const [childName, setChildName] = useState("");
   const [bubble, setBubble] = useState(null);
   const [woke, setWoke] = useState(false);
+  const [pose, setPoseState] = useState(getPose);
   const [streak, setStreak] = useState(0);
   const [daysAway, setDaysAway] = useState(0);
   const buddyStyle = useBuddyStyle();
@@ -60,6 +67,11 @@ export default function Home({ onNavigate }) {
       ? `${streak} days in a row! Let's dance!`
       : `Hi${childName ? ` ${childName}` : ""}!`;
 
+  function changePose(next) {
+    setPoseState(next);
+    setSavedPose(next);
+  }
+
   function buddyTapped() {
     if (sleepy) {
       setWoke(true);
@@ -78,7 +90,7 @@ export default function Home({ onNavigate }) {
   }
 
   return (
-    <Screen centered max="max-w-2xl">
+    <Screen centered allowOverflow max="max-w-2xl">
       <h1 className="t-hero">My Spelling Buddy</h1>
 
       <div className="relative flex items-end justify-center gap-2">
@@ -94,6 +106,9 @@ export default function Home({ onNavigate }) {
           size={110}
           label="Buddy"
           onTap={buddyTapped}
+          movable
+          pose={pose}
+          onPoseChange={changePose}
         />
         <p
           aria-live="polite"
@@ -125,6 +140,18 @@ export default function Home({ onNavigate }) {
             <p className="text-sm text-slate-400">No words added yet.</p>
           )}
         </div>
+      )}
+
+      {isMoved(pose) && (
+        <button
+          type="button"
+          onClick={() => changePose(ZERO_POSE)}
+          // Out of the flow (fixed): appearing must never re-centre Home and
+          // make everything — Buddy included — jump while it's being dragged.
+          className="btn btn-secondary btn-sm fixed bottom-4 left-1/2 z-40 -translate-x-1/2"
+        >
+          ↺ Put Buddy back
+        </button>
       )}
 
       <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">

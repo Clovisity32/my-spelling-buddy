@@ -326,3 +326,217 @@ test("Buddy appears in the Parents and history headers too", async ({
     page.getByRole("button", { name: "Buddy", exact: true }),
   ).toBeVisible();
 });
+
+const poseOf = async (buddy) =>
+  (await buddy.getAttribute("data-buddy-pose")).split(",").map(Number);
+
+test("dragging Buddy moves it, without hugging or counting as a tap, and Put Buddy back resets it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.__events = [];
+    window.__audio.startBuddyPurr = async () => {
+      window.__events.push("purr");
+      return () => {};
+    };
+    window.__audio.playBuddyGiggle = () => window.__events.push("giggle");
+    window.__audio.buddySay = () => window.__events.push("say");
+  });
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 60, cy + 20, { steps: 5 });
+  await page.mouse.move(cx + 150, cy + 80, { steps: 5 });
+  await page.mouse.up();
+
+  const [x, y] = await poseOf(buddy);
+  expect(x).toBeGreaterThan(100);
+  expect(y).toBeGreaterThan(40);
+  const moved = await buddy.boundingBox();
+  expect(moved.x).toBeGreaterThan(b.x + 100);
+  // One pick-up chirp; no purr, and the release was not also a tap (a tap
+  // would add a second giggle and a spoken line).
+  expect(await page.evaluate(() => window.__events)).toEqual(["giggle"]);
+
+  await page.getByRole("button", { name: /Put Buddy back/ }).click();
+  await expect.poll(() => poseOf(buddy)).toEqual([0, 0, 0]);
+  await expect(
+    page.getByRole("button", { name: /Put Buddy back/ }),
+  ).toHaveCount(0);
+});
+
+test("Buddy cannot be dragged off the screen", async ({ page }) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(-400, -400, { steps: 8 });
+  await page.mouse.up();
+  // Poll: Buddy straightens up from its drag lean over a short transition.
+  await expect
+    .poll(async () => (await buddy.boundingBox()).x)
+    .toBeGreaterThanOrEqual(-1);
+  await expect
+    .poll(async () => (await buddy.boundingBox()).y)
+    .toBeGreaterThanOrEqual(-1);
+});
+
+test("the mouse wheel rotates Buddy", async ({ page }) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(async () => (await poseOf(buddy))[2]).toBe(30);
+});
+
+test("a two-finger twist rotates Buddy", async ({ page }) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  await buddy.evaluate(
+    (el, p) => {
+      const fire = (type, id, x, y) =>
+        el.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: id,
+            pointerType: "touch",
+            isPrimary: id === 1,
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+          }),
+        );
+      fire("pointerdown", 1, p.cx - 40, p.cy);
+      fire("pointerdown", 2, p.cx + 40, p.cy);
+      // Second finger swings a quarter turn around the first.
+      fire("pointermove", 2, p.cx - 40, p.cy + 80);
+    },
+    { cx, cy },
+  );
+  await expect.poll(async () => Math.round((await poseOf(buddy))[2])).toBe(90);
+});
+
+test("Buddy's voice: a pi-ka-chu chirp, then a line at maximum pitch", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const out = await page.evaluate(async () => {
+    const ms = await window.__audio.playBuddyChirp(1);
+    const spoken = [];
+    window.speechSynthesis.speak = (u) => {
+      spoken.push({ text: u.text, pitch: u.pitch });
+      setTimeout(() => u.onend && u.onend(), 0);
+    };
+    await window.__audio.buddySay("Hello!");
+    return { ms, spoken };
+  });
+  expect(out.ms).toBeGreaterThan(300);
+  expect(out.spoken).toEqual([{ text: "Hello!", pitch: 2 }]);
+});
+
+test("pinching resizes Buddy within limits", async ({ page }) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  const pinch = (dist) =>
+    buddy.evaluate(
+      (el, p) => {
+        const fire = (type, id, x, y) =>
+          el.dispatchEvent(
+            new PointerEvent(type, {
+              pointerId: id,
+              pointerType: "touch",
+              isPrimary: id === 1,
+              clientX: x,
+              clientY: y,
+              bubbles: true,
+            }),
+          );
+        fire("pointerdown", 1, p.cx - 40, p.cy);
+        fire("pointerdown", 2, p.cx + 40, p.cy);
+        fire("pointermove", 2, p.cx - 40 + p.dist, p.cy);
+        fire("pointerup", 2, p.cx - 40 + p.dist, p.cy);
+        fire("pointerup", 1, p.cx - 40, p.cy);
+      },
+      { cx, cy, dist },
+    );
+  const scale = async () => Number(await buddy.getAttribute("data-buddy-scale"));
+
+  await pinch(120); // fingers 80px -> 120px apart: 1.5x
+  await expect.poll(scale).toBeCloseTo(1.5, 1);
+  await pinch(5000); // far too big: capped
+  await expect.poll(scale).toBe(2);
+});
+
+test("Buddy cannot be shrunk to nothing", async ({ page }) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  await buddy.evaluate(
+    (el, p) => {
+      const fire = (type, id, x, y) =>
+        el.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: id,
+            pointerType: "touch",
+            isPrimary: id === 1,
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+          }),
+        );
+      fire("pointerdown", 1, p.cx - 40, p.cy);
+      fire("pointerdown", 2, p.cx + 40, p.cy);
+      fire("pointermove", 2, p.cx - 39, p.cy);
+    },
+    { cx: b.x + b.width / 2, cy: b.y + b.height / 2 },
+  );
+  await expect
+    .poll(async () => Number(await buddy.getAttribute("data-buddy-scale")))
+    .toBe(0.6);
+});
+
+test("ctrl+wheel (trackpad pinch) resizes Buddy, plain wheel only rotates", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -50);
+  await page.keyboard.up("Control");
+  await expect
+    .poll(async () => Number(await buddy.getAttribute("data-buddy-scale")))
+    .toBeGreaterThan(1);
+  expect((await poseOf(buddy))[2]).toBe(0);
+});
+
+test("on the dress-up screen Buddy can be dragged and shares Home's pose", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Dress up Buddy" }).click();
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const b = await buddy.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 120, b.y + b.height / 2 + 60, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await poseOf(buddy))[0]).toBeGreaterThan(80);
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  const home = page.getByRole("button", { name: "Buddy", exact: true });
+  expect((await poseOf(home))[0]).toBeGreaterThan(80);
+  await expect(page.getByRole("button", { name: /Put Buddy back/ })).toBeVisible();
+});

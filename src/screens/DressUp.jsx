@@ -3,6 +3,12 @@ import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Buddy, { BUDDY_COLORS } from "../buddy/Buddy.jsx";
 import {
+  getPose,
+  setPose as setSavedPose,
+  isMoved,
+  ZERO_POSE,
+} from "../buddy/pose.js";
+import {
   COLOR_UNLOCKS,
   ACCESSORY_UNLOCKS,
   isUnlocked,
@@ -23,6 +29,14 @@ export default function DressUp({ onNavigate }) {
   const [style, setStyle] = useState(null);
   const [total, setTotal] = useState(0);
   const [mood, setMood] = useState("wave");
+  // Same pose as Home: she can spin and resize Buddy to show off what it is
+  // wearing, and it stays that way when she goes back.
+  const [pose, setPoseState] = useState(getPose);
+
+  function changePose(next) {
+    setPoseState(next);
+    setSavedPose(next);
+  }
 
   useEffect(() => {
     (async () => {
@@ -51,18 +65,33 @@ export default function DressUp({ onNavigate }) {
   };
 
   return (
-    <Screen max="max-w-2xl">
+    <Screen allowOverflow max="max-w-2xl">
       <PageHeader title="Dress up Buddy" onBack={() => onNavigate("home")} />
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto pb-2">
-        <div className="pt-6">
-          <Buddy
-            mood={mood}
-            color={style.color}
-            accessory={style.accessory}
-            size={110}
-            label="Buddy"
-          />
-        </div>
+      {/* Buddy sits outside the scrolling area below: an overflow container
+          would clip it the moment it was dragged or enlarged. */}
+      <div className="flex shrink-0 justify-center pt-2">
+        <Buddy
+          mood={mood}
+          color={style.color}
+          accessory={style.accessory}
+          size={110}
+          label="Buddy"
+          movable
+          pose={pose}
+          onPoseChange={changePose}
+        />
+      </div>
+      {isMoved(pose) && (
+        <button
+          type="button"
+          onClick={() => changePose(ZERO_POSE)}
+          // Fixed so it can never shift the layout while Buddy is dragged.
+          className="btn btn-secondary btn-sm fixed bottom-4 left-1/2 z-40 -translate-x-1/2"
+        >
+          ↺ Put Buddy back
+        </button>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto pb-2 pt-4">
 
         <section className="w-full">
           <p className="t-label mb-2">Colour</p>

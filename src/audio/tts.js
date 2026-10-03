@@ -28,6 +28,7 @@
 // there and not in the BCP-47 tag at all) instead of anchoring to one
 // exact tag shape — verified against a simulated zh-Hant-HK voice.
 import { toneNumbersToMarks } from "../pinyin.js";
+import { playBuddyChirp } from "./buddy-voice.js";
 
 const REGION_PREFERENCE = ["sg", "cn", "tw"]; // Singapore > Mainland > Taiwan
 
@@ -220,12 +221,17 @@ export async function speakWordSlowly(text, lang = "zh", voiceURI = null) {
   }
 }
 
-// A cute, higher-pitched English voice for Buddy's little spoken lines.
-export function buddySay(text) {
-  if (!isSpeechSynthesisSupported() || !text) return Promise.resolve();
-  speakToken++;
+// Buddy's spoken lines: a squeaky "pi-ka-chu" chirp, then the line itself at
+// the highest pitch speech synthesis allows (2.0) and a perky rate. The
+// browser can't make a truly tiny voice, so the chirp does the cuteness
+// heavy-lifting and the high-pitched words follow it.
+export async function buddySay(text) {
+  if (!isSpeechSynthesisSupported() || !text) return;
+  const token = ++speakToken;
   window.speechSynthesis.cancel();
-  return speakUtterance(text, "en", null, 1.05, 1.8);
+  await playBuddyChirp(1.1);
+  if (token !== speakToken) return; // a newer line took over during the chirp
+  await speakUtterance(text, "en", null, 1.15, 2);
 }
 
 // Speaks a stored word. Prefers its speechText (the Chinese characters a

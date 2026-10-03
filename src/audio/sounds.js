@@ -3,6 +3,7 @@
 // getAudioContext() directly, so a sound scheduled right after the unlock
 // gesture isn't silently dropped on Chrome/iOS.
 import { ensureAudioContextRunning } from "./context.js";
+import { playBuddyChirp } from "./buddy-voice.js";
 
 function tone(ctx, { freq, start, duration, type = "sine", gain = 0.2 }) {
   const osc = ctx.createOscillator();
@@ -108,19 +109,9 @@ const BUDDY_SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
 
 // Quick rising boops with a little wobble — Buddy's giggle. `pitch` (about
 // 0.8–1.3) gives each family member its own voice.
-export async function playBuddyGiggle(pitch = 1) {
-  const ctx = await ensureAudioContextRunning();
-  if (!ctx) return;
-  const now = ctx.currentTime;
-  [700, 900, 800, 1050].forEach((f, i) => {
-    tone(ctx, {
-      freq: f * pitch,
-      start: now + i * 0.07,
-      duration: 0.1,
-      type: "triangle",
-      gain: 0.16,
-    });
-  });
+export function playBuddyGiggle(pitch = 1) {
+  // Buddy's tap sound is its squeaky "pi-ka-chu" call (see buddy-voice.js).
+  return playBuddyChirp(pitch);
 }
 
 // One note per family member, for the tap-the-buddies xylophone.

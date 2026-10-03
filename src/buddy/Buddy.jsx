@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import "./buddy.css";
+import { MIN_SCALE, MAX_SCALE } from "./pose.js";
 
 // Pastel family, one per member of Chloe's drawing.
 export const BUDDY_COLORS = {
@@ -106,8 +107,22 @@ export default function Buddy({
   onTap,
   label = "Buddy",
   className = "",
+  // Drag to move, two-finger twist (or mouse wheel) to rotate. `pose` is
+  // {x, y, r} in px/degrees and is controlled by the parent so it can offer a
+  // "put Buddy back" button.
+  movable = false,
+  pose = null,
+  onPoseChange = null,
 }) {
   const [reaction, setReaction] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [lean, setLean] = useState(0);
+  const el = useRef(null);
+  const pointers = useRef(new Map());
+  const gesture = useRef(null);
+  const dragged = useRef(false);
+  const poseRef = useRef({ x: 0, y: 0, r: 0, s: 1 });
+  poseRef.current = pose || poseRef.current;
   // Squishing: pressed = finger is down (squash), hugging = held long
   // enough to become a cuddle (happy closed eyes, hearts, purr), boing = the
   // spring back after letting go.
@@ -170,7 +185,143 @@ export default function Buddy({
     }
   }
 
+  // Abandon a press without the hug "aww" or the spring-back — used when the
+  // press turns out to be a drag or a twist.
+  function cancelPress() {
+    clearTimeout(holdTimer.current);
+    hugState.current = "none";
+    stopPurr.current?.();
+    stopPurr.current = null;
+    setHugging(false);
+    setPressed(false);
+  }
+
+  const distanceBetween = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  };
+
+  const angleBetween = () => {
+    const [a, b] = [...pointers.current.values()];
+    return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  };
+
+  function onDown(e) {
+    if (!movable) return press();
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic or already-gone pointer — dragging still works without it.
+    }
+    if (pointers.current.size === 2) {
+      cancelPress();
+      dragged.current = true;
+      setDragging(true);
+      gesture.current = {
+        type: "twist",
+        startAngle: angleBetween(),
+        startRot: poseRef.current.r,
+        startDist: Math.max(distanceBetween(), 1),
+        startScale: poseRef.current.s ?? 1,
+      };
+      return;
+    }
+    const rect = el.current.getBoundingClientRect();
+    const start = poseRef.current;
+    gesture.current = {
+      type: "drag",
+      x: e.clientX,
+      y: e.clientY,
+      start: { ...start },
+      // Where Buddy sits with no offset, so it can be kept inside the screen.
+      baseLeft: rect.left - start.x,
+      baseTop: rect.top - start.y,
+      w: rect.width,
+      h: rect.height,
+      moved: false,
+    };
+    press();
+  }
+
+  function onMove(e) {
+    const g = gesture.current;
+    if (!movable || !g || !pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.type === "twist") {
+      if (pointers.current.size < 2) return;
+      onPoseChange?.({
+        ...poseRef.current,
+        r: g.startRot + (angleBetween() - g.startAngle),
+        // Pinch: fingers apart grows Buddy, together shrinks it — within a
+        // sensible range so it can't vanish or fill the screen.
+        s: Math.min(
+          MAX_SCALE,
+          Math.max(MIN_SCALE, g.startScale * (distanceBetween() / g.startDist)),
+        ),
+      });
+      return;
+    }
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (!g.moved) {
+      if (Math.hypot(dx, dy) < 8) return;
+      g.moved = true;
+      dragged.current = true;
+      cancelPress();
+      setDragging(true);
+      window.__audio?.playBuddyGiggle?.(pitch); // a little "pika!" on pick-up
+    }
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    onPoseChange?.({
+      ...poseRef.current,
+      x: clamp(
+        g.start.x + dx,
+        -g.baseLeft,
+        window.innerWidth - g.baseLeft - g.w,
+      ),
+      y: clamp(
+        g.start.y + dy,
+        -g.baseTop,
+        window.innerHeight - g.baseTop - g.h,
+      ),
+    });
+    setLean(clamp((e.movementX || 0) * 1.5, -14, 14));
+  }
+
+  function onUp(e) {
+    if (!movable) return release();
+    pointers.current.delete(e.pointerId);
+    const g = gesture.current;
+    if (pointers.current.size > 0) return; // still one finger down after a twist
+    gesture.current = null;
+    if (g && (g.type === "twist" || g.moved)) {
+      setDragging(false);
+      setLean(0);
+      setBoing(true);
+      clearTimeout(boingTimer.current);
+      boingTimer.current = setTimeout(() => setBoing(false), 700);
+      // The click that follows this release must not count as a tap.
+      setTimeout(() => (dragged.current = false), 0);
+      return;
+    }
+    release();
+  }
+
+  function onWheel(e) {
+    if (!movable) return;
+    const cur = poseRef.current;
+    // Trackpad pinch arrives as ctrl+wheel: resize. A plain wheel turns it.
+    if (e.ctrlKey) {
+      const s = (cur.s ?? 1) * Math.exp(-e.deltaY * 0.01);
+      onPoseChange?.({ ...cur, s: Math.min(MAX_SCALE, Math.max(MIN_SCALE, s)) });
+      return;
+    }
+    onPoseChange?.({ ...cur, r: cur.r + e.deltaY * 0.15 });
+  }
+
   function tap() {
+    if (dragged.current) return;
     // A long hold was a hug, not a tap — don't also fire a tap reaction.
     if (hugState.current === "hugged") {
       hugState.current = "none";
@@ -201,18 +352,37 @@ export default function Buddy({
       onClick={tap}
       aria-label={label}
       data-buddy-mood={hugging ? "hug" : reaction ? `r-${reaction}` : mood}
-      onPointerDown={press}
-      onPointerUp={release}
-      onPointerLeave={release}
-      onPointerCancel={release}
+      ref={el}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerLeave={movable ? undefined : release}
+      onPointerCancel={onUp}
+      onWheel={onWheel}
       onContextMenu={(e) => e.preventDefault()}
       className={classes}
+      data-buddy-scale={movable && pose ? (pose.s ?? 1).toFixed(2) : undefined}
+      data-buddy-pose={
+        movable && pose
+          ? `${Math.round(pose.x)},${Math.round(pose.y)},${Math.round(pose.r)}`
+          : undefined
+      }
       style={{
         width: size,
         height: size * 1.5,
         background: "none",
         border: 0,
         padding: 0,
+        ...(movable && {
+          // A transform, so moving Buddy never reflows the screen. Lean tips
+          // it into the direction of travel while it's being carried.
+          transform: `translate(${(pose || poseRef.current).x}px, ${(pose || poseRef.current).y}px) rotate(${(pose || poseRef.current).r + lean}deg) scale(${(pose || poseRef.current).s ?? 1})`,
+          transition: dragging ? "none" : "transform 0.35s ease-out",
+          position: "relative",
+          zIndex: 30,
+          touchAction: "none",
+          cursor: dragging ? "grabbing" : "grab",
+        }),
       }}
     >
       <svg viewBox="0 0 200 300" width="100%" height="100%" aria-hidden="true">
