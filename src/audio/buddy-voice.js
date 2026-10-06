@@ -46,25 +46,60 @@ export async function playBuddyChirp(pitch = 1) {
   const t = ctx.currentTime;
   squeak(ctx, {
     start: t,
-    from: 1000 * pitch,
-    to: 1750 * pitch,
+    from: 1500 * pitch,
+    to: 2600 * pitch,
     duration: 0.11,
     gain: 0.18,
   });
   squeak(ctx, {
     start: t + 0.15,
-    from: 1650 * pitch,
-    to: 1450 * pitch,
+    from: 2500 * pitch,
+    to: 2100 * pitch,
     duration: 0.07,
     gain: 0.16,
   });
   squeak(ctx, {
     start: t + 0.26,
-    from: 1400 * pitch,
-    to: 2100 * pitch,
+    from: 2200 * pitch,
+    to: 3300 * pitch,
     duration: 0.2,
     gain: 0.18,
     vibrato: 45,
   });
   return 480;
+}
+
+// Buddy "talks" in Pikachu-speak: a babble of tiny high chirps, one per
+// syllable of the line, rising on questions and falling on a full stop. The
+// browser's speech engine can't make a small voice (even at maximum pitch it
+// sounds like a grown man), so the words are shown in the speech bubble and
+// this is what is heard. Resolves with the length in ms.
+// `tempo` (about 0.7–1.4) makes a friend chatter faster or drawl slower, so
+// each one has its own voice, not just its own pitch.
+export async function playBuddyBabble(text = "", pitch = 1, tempo = 1) {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return 0;
+  const syllables = Math.min(
+    14,
+    Math.max(3, Math.round(text.replace(/[^a-z']/gi, "").length / 3)),
+  );
+  const question = /\?\s*$/.test(text);
+  const t0 = ctx.currentTime + 0.02;
+  let t = 0;
+  for (let i = 0; i < syllables; i++) {
+    const last = i === syllables - 1;
+    // A bouncy melody: wander between a few high notes, with a bend at the end.
+    const base = (1900 + ((i * 7) % 5) * 260) * pitch;
+    const up = question && last;
+    squeak(ctx, {
+      start: t0 + t,
+      from: base,
+      to: up ? base * 1.5 : last ? base * 0.8 : base * (i % 2 ? 1.18 : 0.92),
+      duration: (last ? 0.2 : 0.085) / tempo,
+      gain: 0.15,
+      vibrato: last ? 40 : 0,
+    });
+    t += (last ? 0.2 : 0.12) / tempo;
+  }
+  return Math.round(t * 1000);
 }

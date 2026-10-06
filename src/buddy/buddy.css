@@ -12,8 +12,49 @@
 .buddy {
   -webkit-touch-callout: none;
 }
+.buddy {
+  perspective: 500px;
+}
 .buddy svg {
   overflow: visible;
+}
+/* 3D spins turn the whole body (not an inner part) about the figure's own
+   centre, so it can flip around any axis. */
+.buddy-3d {
+  transform-origin: 50% 55%;
+  transform-style: preserve-3d;
+}
+.buddy--r-spinx .buddy-3d {
+  animation: buddy-spin-x 1.1s ease-in-out 1;
+}
+.buddy--r-spiny .buddy-3d {
+  animation: buddy-spin-y 1.1s ease-in-out 1;
+}
+.buddy--r-spinz .buddy-3d {
+  animation: buddy-spin-z 1.1s ease-in-out 1;
+}
+.buddy--r-tumble .buddy-3d {
+  animation: buddy-tumble 1.2s ease-in-out 1;
+}
+@keyframes buddy-spin-x {
+  to {
+    transform: rotateX(360deg);
+  }
+}
+@keyframes buddy-spin-y {
+  to {
+    transform: rotateY(720deg);
+  }
+}
+@keyframes buddy-spin-z {
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+@keyframes buddy-tumble {
+  to {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg);
+  }
 }
 .buddy-squish {
   transform-origin: 50% 100%;

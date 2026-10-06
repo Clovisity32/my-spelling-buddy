@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
+import HomeScene from "../buddy/HomeScene.jsx";
+import { currentHour, dayNumber } from "../buddy/timeOfDay.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
   getPose,
@@ -22,6 +24,17 @@ const BUDDY_LINES = [
   "Tee hee, that tickles!",
 ];
 
+// What Buddy does after stepping out of the house — a different one each day.
+const DAILY_ACTIONS = [
+  { id: "wave", line: (n) => `Hi${n}! I came out to say hello!` },
+  { id: "cartwheel", line: () => "Watch me cartwheel! Wheee!" },
+  { id: "flip3d", line: () => "I can spin every which way!" },
+  { id: "hop", line: () => "Boing, boing, boing!" },
+  { id: "run", line: () => "Race you to the tree!" },
+  { id: "sing", line: () => "La la la! Let's sing!" },
+  { id: "peek", line: () => "Peekaboo! I see you!" },
+];
+
 export default function Home({ onNavigate }) {
   const [latestList, setLatestList] = useState(null);
   const [latestWords, setLatestWords] = useState([]);
@@ -33,6 +46,17 @@ export default function Home({ onNavigate }) {
   const [streak, setStreak] = useState(0);
   const [daysAway, setDaysAway] = useState(0);
   const buddyStyle = useBuddyStyle();
+  const [hour, setHour] = useState(currentHour);
+  const action = useMemo(
+    () => DAILY_ACTIONS[dayNumber() % DAILY_ACTIONS.length],
+    [],
+  );
+
+  // Keep the sky in step with the clock while the app stays open.
+  useEffect(() => {
+    const id = setInterval(() => setHour(currentHour()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -65,7 +89,7 @@ export default function Home({ onNavigate }) {
     ? "Zzz… oh! Is that you?"
     : streak >= DANCE_STREAK
       ? `${streak} days in a row! Let's dance!`
-      : `Hi${childName ? ` ${childName}` : ""}!`;
+      : action.line(childName ? ` ${childName}` : "");
 
   function changePose(next) {
     setPoseState(next);
@@ -93,12 +117,11 @@ export default function Home({ onNavigate }) {
     <Screen centered allowOverflow max="max-w-2xl">
       <h1 className="t-hero">My Spelling Buddy</h1>
 
-      <div className="relative flex items-end justify-center gap-2">
-        {/* A soft warm glow, like a nightlight — Buddy should feel snug. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-4 left-1/2 h-40 w-40 -translate-x-[70%] rounded-full bg-amber-200/60 blur-3xl"
-        />
+      <HomeScene
+        hour={hour}
+        action={sleepy ? "wave" : action.id}
+        bubble={bubble || greeting}
+      >
         <Buddy
           mood={buddyMood}
           color={buddyStyle.color}
@@ -110,13 +133,7 @@ export default function Home({ onNavigate }) {
           pose={pose}
           onPoseChange={changePose}
         />
-        <p
-          aria-live="polite"
-          className="mb-16 max-w-[12rem] rounded-2xl rounded-bl-none bg-white px-4 py-2 text-base font-semibold text-slate-700 shadow-md"
-        >
-          {bubble || greeting}
-        </p>
-      </div>
+      </HomeScene>
 
       {latestList && (
         <div className="card w-full text-left">

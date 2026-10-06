@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Screen from "../components/Screen.jsx";
-import BuddyFamily from "../buddy/BuddyFamily.jsx";
+import BuddyFamily, { pickPartyStyle } from "../buddy/BuddyFamily.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import { getJustUnlocked } from "../buddy/unlocks.js";
 import { getJustEarnedSticker } from "../stickers.js";
@@ -24,6 +24,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [newSticker, setNewSticker] = useState(null);
   const [unlocked, setUnlocked] = useState([]);
   const buddyStyle = useBuddyStyle();
+  const party = useMemo(pickPartyStyle, []);
 
   useEffect(() => {
     window.__audio.playFanfare();
@@ -71,6 +72,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
     <Screen centered max="max-w-2xl">
       <BuddyFamily
         mood="dance"
+        party={party}
         leadColor={buddyStyle.color}
         leadAccessory={buddyStyle.accessory}
       />

@@ -28,7 +28,7 @@
 // there and not in the BCP-47 tag at all) instead of anchoring to one
 // exact tag shape — verified against a simulated zh-Hant-HK voice.
 import { toneNumbersToMarks } from "../pinyin.js";
-import { playBuddyChirp } from "./buddy-voice.js";
+import { playBuddyChirp, playBuddyBabble } from "./buddy-voice.js";
 
 const REGION_PREFERENCE = ["sg", "cn", "tw"]; // Singapore > Mainland > Taiwan
 
@@ -221,17 +221,17 @@ export async function speakWordSlowly(text, lang = "zh", voiceURI = null) {
   }
 }
 
-// Buddy's spoken lines: a squeaky "pi-ka-chu" chirp, then the line itself at
-// the highest pitch speech synthesis allows (2.0) and a perky rate. The
-// browser can't make a truly tiny voice, so the chirp does the cuteness
-// heavy-lifting and the high-pitched words follow it.
-export async function buddySay(text) {
-  if (!isSpeechSynthesisSupported() || !text) return;
+// Buddy's spoken lines: a squeaky "pi-ka-chu" call followed by a babble of
+// tiny chirps (see buddy-voice.js). Speech synthesis is deliberately not used
+// here — even at its highest pitch it sounds like a grown man. The line is
+// always shown in Buddy's speech bubble.
+export async function buddySay(text, pitch = 1.1) {
+  if (!text) return;
   const token = ++speakToken;
-  window.speechSynthesis.cancel();
-  await playBuddyChirp(1.1);
+  window.speechSynthesis?.cancel();
+  await playBuddyChirp(pitch);
   if (token !== speakToken) return; // a newer line took over during the chirp
-  await speakUtterance(text, "en", null, 1.15, 2);
+  await playBuddyBabble(text, pitch);
 }
 
 // Speaks a stored word. Prefers its speechText (the Chinese characters a

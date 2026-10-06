@@ -13,7 +13,17 @@ export const BUDDY_COLORS = {
   coral: { body: "#ffc9c0", edge: "#e8948a", ear: "#ffe0a0" },
 };
 
-const REACTIONS = ["jump", "spin", "ears", "heart"];
+// spinx/spiny/spinz/tumble turn the whole body in 3D around each axis.
+const REACTIONS = [
+  "jump",
+  "spin",
+  "ears",
+  "heart",
+  "spinx",
+  "spiny",
+  "spinz",
+  "tumble",
+];
 
 // Position lives on an outer <g> and the animation class on the inner path:
 // a CSS animation's `transform` replaces an SVG transform attribute on the
@@ -314,7 +324,10 @@ export default function Buddy({
     // Trackpad pinch arrives as ctrl+wheel: resize. A plain wheel turns it.
     if (e.ctrlKey) {
       const s = (cur.s ?? 1) * Math.exp(-e.deltaY * 0.01);
-      onPoseChange?.({ ...cur, s: Math.min(MAX_SCALE, Math.max(MIN_SCALE, s)) });
+      onPoseChange?.({
+        ...cur,
+        s: Math.min(MAX_SCALE, Math.max(MIN_SCALE, s)),
+      });
       return;
     }
     onPoseChange?.({ ...cur, r: cur.r + e.deltaY * 0.15 });
@@ -330,7 +343,7 @@ export default function Buddy({
     const r = REACTIONS[Math.floor(Math.random() * REACTIONS.length)];
     setReaction(r);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setReaction(null), 900);
+    timer.current = setTimeout(() => setReaction(null), 1300);
     window.__audio?.playBuddyGiggle?.(pitch);
     onTap?.(r);
   }
@@ -385,7 +398,13 @@ export default function Buddy({
         }),
       }}
     >
-      <svg viewBox="0 0 200 300" width="100%" height="100%" aria-hidden="true">
+      <svg
+        className="buddy-3d"
+        viewBox="0 0 200 300"
+        width="100%"
+        height="100%"
+        aria-hidden="true"
+      >
         <defs>
           {/* Soft light from the top-left and a deeper rim at the edges: a
               flat fill reads as a sticker, this reads as a plush toy. */}

@@ -424,22 +424,19 @@ test("a two-finger twist rotates Buddy", async ({ page }) => {
   await expect.poll(async () => Math.round((await poseOf(buddy))[2])).toBe(90);
 });
 
-test("Buddy's voice: a pi-ka-chu chirp, then a line at maximum pitch", async ({
+test("Buddy's voice: a pi-ka-chu chirp, then a babble of chirps instead of speech synthesis", async ({
   page,
 }) => {
   await page.goto("/");
   const out = await page.evaluate(async () => {
     const ms = await window.__audio.playBuddyChirp(1);
     const spoken = [];
-    window.speechSynthesis.speak = (u) => {
-      spoken.push({ text: u.text, pitch: u.pitch });
-      setTimeout(() => u.onend && u.onend(), 0);
-    };
+    window.speechSynthesis.speak = (u) => spoken.push(u.text);
     await window.__audio.buddySay("Hello!");
     return { ms, spoken };
   });
   expect(out.ms).toBeGreaterThan(300);
-  expect(out.spoken).toEqual([{ text: "Hello!", pitch: 2 }]);
+  expect(out.spoken).toEqual([]); // a man-sized TTS voice is never used
 });
 
 test("pinching resizes Buddy within limits", async ({ page }) => {
@@ -470,7 +467,8 @@ test("pinching resizes Buddy within limits", async ({ page }) => {
       },
       { cx, cy, dist },
     );
-  const scale = async () => Number(await buddy.getAttribute("data-buddy-scale"));
+  const scale = async () =>
+    Number(await buddy.getAttribute("data-buddy-scale"));
 
   await pinch(120); // fingers 80px -> 120px apart: 1.5x
   await expect.poll(scale).toBeCloseTo(1.5, 1);
@@ -531,12 +529,102 @@ test("on the dress-up screen Buddy can be dragged and shares Home's pose", async
   const b = await buddy.boundingBox();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();
-  await page.mouse.move(b.x + b.width / 2 + 120, b.y + b.height / 2 + 60, { steps: 6 });
+  await page.mouse.move(b.x + b.width / 2 + 120, b.y + b.height / 2 + 60, {
+    steps: 6,
+  });
   await page.mouse.up();
   await expect.poll(async () => (await poseOf(buddy))[0]).toBeGreaterThan(80);
 
   await page.getByRole("button", { name: "Back", exact: true }).click();
   const home = page.getByRole("button", { name: "Buddy", exact: true });
   expect((await poseOf(home))[0]).toBeGreaterThan(80);
-  await expect(page.getByRole("button", { name: /Put Buddy back/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Put Buddy back/ }),
+  ).toBeVisible();
+});
+
+test("Home scene: sky follows the time of day and Buddy comes out with the day's action", async ({
+  page,
+}) => {
+  const scene = page.getByLabel("Buddy's neighbourhood");
+  for (const [hour, phase] of [
+    [12, "day"],
+    [22, "night"],
+    [6, "dawn"],
+    [18, "dusk"],
+  ]) {
+    await page.goto(`/?hour=${hour}`);
+    await expect(scene).toHaveAttribute("data-time-of-day", phase);
+  }
+  await expect(scene).toHaveAttribute("data-buddy-action", /\w+/);
+  await page.goto("/?hour=23");
+  await expect(scene.locator(".scene-moon")).toHaveCount(1);
+  await expect(scene.locator(".scene-star").first()).toBeAttached();
+});
+
+test("tapping Buddy can spin it around any 3D axis", async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto("/");
+  await page.evaluate(() => (window.__audio.buddySay = () => {}));
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  const seen = new Set();
+  for (let i = 0; i < 40 && seen.size < 3; i++) {
+    await buddy.click();
+    const mood = await buddy.getAttribute("data-buddy-mood");
+    if (/spin[xyz]|tumble/.test(mood)) seen.add(mood);
+    await page.waitForTimeout(1350);
+  }
+  expect(seen.size).toBeGreaterThanOrEqual(3);
+});
+
+test("Buddy's voice is a high chirp babble, not speech synthesis", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const ms = await page.evaluate(() =>
+    window.__audio.playBuddyBabble("Hi Chloe!"),
+  );
+  expect(ms).toBeGreaterThan(0);
+});
+
+test("the celebration can show each party style", async ({ page }) => {
+  for (const style of ["sing", "run", "queue"]) {
+    await seedList(page, `Party ${style}`);
+    await page.goto(`/?party=${style}`);
+    await page.getByRole("button", { name: "Practise" }).click();
+    await page.getByText(`Party ${style}`).click();
+    await scribble(page);
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Next word" }).click();
+    await expect(page.getByLabel("Buddy and friends")).toHaveAttribute(
+      "data-party",
+      style,
+    );
+  }
+});
+
+test("each Home friend answers a tap in its own voice and bubble", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.__babbles = [];
+    window.__audio.playBuddyBabble = (t, p, tempo) =>
+      window.__babbles.push([t, p, tempo]);
+  });
+  await page.getByRole("button", { name: "lavender friend" }).click();
+  await page.getByRole("button", { name: "butter friend" }).click();
+  await expect(page.getByText("Let's play!")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__babbles.length)).toBe(2);
+  const [a, b] = await page.evaluate(() => window.__babbles);
+  expect(a[1]).not.toEqual(b[1]); // different pitch
+  expect(a[2]).not.toEqual(b[2]); // different speed
+});
+
+test("Buddy's speech bubble stays inside the scene", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/");
+  const scene = await page.getByLabel("Buddy's neighbourhood").boundingBox();
+  const bubble = await page.locator(".scene-bubble").boundingBox();
+  expect(bubble.x + bubble.width).toBeLessThanOrEqual(scene.x + scene.width);
 });
