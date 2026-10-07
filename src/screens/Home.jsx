@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import HomeScene from "../buddy/HomeScene.jsx";
-import { currentHour, dayNumber } from "../buddy/timeOfDay.js";
+import { currentHour, dayNumber, sceneIsStill } from "../buddy/timeOfDay.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
   getPose,
@@ -45,6 +45,12 @@ export default function Home({ onNavigate }) {
   const [pose, setPoseState] = useState(getPose);
   const [streak, setStreak] = useState(0);
   const [daysAway, setDaysAway] = useState(0);
+  // Where Buddy is: out on the lawn, going home, in (door shut — knock to
+  // call it out) or coming out again.
+  const [presence, setPresence] = useState("out");
+  const [knocking, setKnocking] = useState(false);
+  const [cycle, setCycle] = useState(0); // bumps each time Buddy steps out
+  const timers = useRef([]);
   const buddyStyle = useBuddyStyle();
   const [hour, setHour] = useState(currentHour);
   const action = useMemo(
@@ -57,6 +63,8 @@ export default function Home({ onNavigate }) {
     const id = setInterval(() => setHour(currentHour()), 60000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   useEffect(() => {
     (async () => {
@@ -85,11 +93,46 @@ export default function Home({ onNavigate }) {
     : streak >= DANCE_STREAK
       ? "dance"
       : "wave";
-  const greeting = sleepy
-    ? "Zzz… oh! Is that you?"
-    : streak >= DANCE_STREAK
-      ? `${streak} days in a row! Let's dance!`
-      : action.line(childName ? ` ${childName}` : "");
+  const greeting =
+    presence === "in"
+      ? "Knock, knock on my door to call me out!"
+      : presence === "going"
+        ? "Home sweet home!"
+        : presence === "coming"
+          ? "I'm coming! I'm coming!"
+          : sleepy
+            ? "Zzz… oh! Is that you?"
+            : streak >= DANCE_STREAK
+              ? `${streak} days in a row! Let's dance!`
+              : action.line(childName ? ` ${childName}` : "");
+
+  // The test browser gets an instant, still scene, so the steps have no waits.
+  function later(fn, ms) {
+    timers.current.push(setTimeout(fn, sceneIsStill() ? 0 : ms));
+  }
+
+  function goHome() {
+    changePose(ZERO_POSE);
+    setBubble(null);
+    setPresence("going");
+    later(() => setPresence("in"), 1100);
+  }
+
+  // Knock: the house shakes, then Buddy answers and walks out the door.
+  function knock() {
+    if (knocking || presence !== "in") return;
+    setKnocking(true);
+    setBubble(null);
+    window.__audio.playKnock?.();
+    later(() => {
+      setKnocking(false);
+      setWoke(true);
+      setCycle((c) => c + 1);
+      setPresence("coming");
+      window.__audio.buddySay?.("I'm coming!");
+      later(() => setPresence("out"), 1500);
+    }, 1000);
+  }
 
   function changePose(next) {
     setPoseState(next);
@@ -114,13 +157,16 @@ export default function Home({ onNavigate }) {
   }
 
   return (
-    <Screen centered allowOverflow max="max-w-2xl">
-      <h1 className="t-hero">My Spelling Buddy</h1>
-
+    <Screen allowOverflow max="max-w-2xl" className="relative">
+      {/* The scene is the page itself, full bleed; the controls float on it. */}
       <HomeScene
         hour={hour}
         action={sleepy ? "wave" : action.id}
         bubble={bubble || greeting}
+        presence={presence}
+        knocking={knocking}
+        cycle={cycle}
+        onKnock={knock}
       >
         <Buddy
           mood={buddyMood}
@@ -135,8 +181,12 @@ export default function Home({ onNavigate }) {
         />
       </HomeScene>
 
+      <h1 className="t-hero !text-2xl sm:!text-4xl relative z-10 mt-1 self-center rounded-full bg-white/75 px-6 py-1 text-center shadow-sm backdrop-blur">
+        My Spelling Buddy
+      </h1>
+
       {latestList && (
-        <div className="card w-full text-left">
+        <div className="card relative z-10 mt-3 max-h-28 w-full overflow-y-auto bg-white/85 text-left backdrop-blur">
           <p className="t-label mb-2">Latest list: {latestList.name}</p>
           {latestWords.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -171,40 +221,52 @@ export default function Home({ onNavigate }) {
         </button>
       )}
 
-      <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">
+      <div className="flex-1" />
+
+      <div className="relative z-10 flex w-full flex-row justify-center gap-3">
         <button
           type="button"
           onClick={() => onNavigate("lists", { mode: "practice" })}
-          className="btn btn-go btn-hero flex-1 sm:max-w-xs"
+          className="btn btn-go btn-hero !min-h-[3.5rem] !px-6 !py-3 flex-1 sm:max-w-xs"
         >
           Practise
         </button>
         <button
           type="button"
           onClick={() => onNavigate("parentMenu")}
-          className="btn btn-secondary btn-hero flex-1 text-xl sm:max-w-[12rem]"
+          className="btn btn-secondary btn-hero !min-h-[3.5rem] !px-6 !py-3 flex-1 !text-xl sm:max-w-[12rem]"
         >
           Parents
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onNavigate("dressUp")}
-        className="btn btn-secondary btn-sm"
-      >
-        🎨 Dress up Buddy
-      </button>
-
-      {stickersEnabled && (
+      <div className="relative z-10 mt-3 flex flex-wrap justify-center gap-2">
         <button
           type="button"
-          onClick={() => onNavigate("stickers")}
+          onClick={() => onNavigate("dressUp")}
           className="btn btn-secondary btn-sm"
         >
-          🎖️ My Stickers
+          🎨 Dress up Buddy
         </button>
-      )}
+        {presence === "out" && (
+          <button
+            type="button"
+            onClick={goHome}
+            className="btn btn-secondary btn-sm"
+          >
+            🏠 Send Buddy home
+          </button>
+        )}
+        {stickersEnabled && (
+          <button
+            type="button"
+            onClick={() => onNavigate("stickers")}
+            className="btn btn-secondary btn-sm"
+          >
+            🎖️ My Stickers
+          </button>
+        )}
+      </div>
     </Screen>
   );
 }

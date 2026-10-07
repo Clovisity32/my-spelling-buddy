@@ -47,6 +47,7 @@ Pushing to `master` deploys to GitHub Pages via `.github/workflows/deploy-pages.
 
 ## Changelog
 
-| Date | What changed |
-|------|--------------|
+| Date    | What changed                                                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-10 | Pikachu-style chirp voice, time-of-day Home scene with daily door entrance, 3D spins, varied celebration parties, per-friend voices and moves; GitHub Actions bumped to current majors |
+| 2026-10 | Home scene is now full-bleed (the page itself, controls float on it); Buddy can go home ("Send Buddy home") and a knock on the door (`playKnock`) brings it back out — `presence` out/going/in/coming lives in `Home.jsx` |

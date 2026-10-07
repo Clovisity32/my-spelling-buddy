@@ -101,92 +101,123 @@ function Cloud({ top, size, delay }) {
   );
 }
 
-function House({ phase, doorOpen }) {
+function House({ phase, doorOpen, presence, knocking, onKnock }) {
   const { window: win } = SKY[phase];
   return (
-    <svg
-      viewBox="0 0 200 170"
-      className="absolute bottom-[10%] left-[3%] w-[28%]"
-      aria-hidden="true"
+    <div
+      className={`scene-house${knocking ? " scene-house--knock" : ""}`}
+      data-door={doorOpen ? "open" : "closed"}
     >
-      {/* chimney */}
-      <rect
-        x="140"
-        y="14"
-        width="18"
-        height="40"
-        fill="#c46a5a"
-        stroke="#9c4a3e"
-        strokeWidth="3"
-      />
-      <rect
-        x="26"
-        y="70"
-        width="148"
-        height="96"
-        rx="4"
-        fill="#fff3d6"
-        stroke="#d9b779"
-        strokeWidth="4"
-      />
-      <path
-        d="M10 76 L100 8 L190 76 Z"
-        fill="#e5604d"
-        stroke="#b9402f"
-        strokeWidth="5"
-        strokeLinejoin="round"
-      />
-      <circle
-        cx="100"
-        cy="52"
-        r="11"
-        fill={win}
-        stroke="#b9402f"
-        strokeWidth="4"
-      />
-      {/* windows, glowing at night */}
-      {[44, 128].map((x) => (
-        <g key={x}>
-          <rect
-            x={x}
-            y="94"
-            width="28"
-            height="28"
-            rx="3"
-            fill={win}
-            stroke="#8a6d3b"
-            strokeWidth="3"
-          />
-          <path
-            d={`M${x + 14} 94 V122 M${x} 108 H${x + 28}`}
-            stroke="#8a6d3b"
-            strokeWidth="2.5"
-          />
-        </g>
-      ))}
-      {/* door: a dark doorway with the door swung open in front of it */}
-      <path d="M82 166 V118 Q100 98 118 118 V166 Z" fill="#3a2a2a" />
-      <g
-        className={doorOpen ? "scene-door scene-door--open" : "scene-door"}
-        style={{ transformOrigin: "82px 140px" }}
-      >
-        <path
-          d="M82 166 V118 Q100 98 118 118 V166 Z"
-          fill="#9b6a43"
-          stroke="#6e4a2a"
+      <svg viewBox="0 0 200 170" className="block w-full" aria-hidden="true">
+        {/* chimney */}
+        <rect
+          x="140"
+          y="14"
+          width="18"
+          height="40"
+          fill="#c46a5a"
+          stroke="#9c4a3e"
           strokeWidth="3"
         />
-        <circle cx="111" cy="142" r="3" fill="#ffd54a" />
-      </g>
-    </svg>
+        <rect
+          x="26"
+          y="70"
+          width="148"
+          height="96"
+          rx="4"
+          fill="#fff3d6"
+          stroke="#d9b779"
+          strokeWidth="4"
+        />
+        <path
+          d="M10 76 L100 8 L190 76 Z"
+          fill="#e5604d"
+          stroke="#b9402f"
+          strokeWidth="5"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="100"
+          cy="52"
+          r="11"
+          fill={win}
+          stroke="#b9402f"
+          strokeWidth="4"
+        />
+        {/* windows, glowing at night */}
+        {[44, 128].map((x) => (
+          <g key={x}>
+            <rect
+              x={x}
+              y="94"
+              width="28"
+              height="28"
+              rx="3"
+              fill={win}
+              stroke="#8a6d3b"
+              strokeWidth="3"
+            />
+            <path
+              d={`M${x + 14} 94 V122 M${x} 108 H${x + 28}`}
+              stroke="#8a6d3b"
+              strokeWidth="2.5"
+            />
+          </g>
+        ))}
+        {/* door: a dark doorway with the door swung open in front of it */}
+        <path d="M82 166 V118 Q100 98 118 118 V166 Z" fill="#3a2a2a" />
+        <g
+          className={doorOpen ? "scene-door scene-door--open" : "scene-door"}
+          style={{ transformOrigin: "82px 140px" }}
+        >
+          <path
+            d="M82 166 V118 Q100 98 118 118 V166 Z"
+            fill="#9b6a43"
+            stroke="#6e4a2a"
+            strokeWidth="3"
+          />
+          <circle cx="111" cy="142" r="3" fill="#ffd54a" />
+        </g>
+      </svg>
+      {presence === "in" && (
+        <button
+          type="button"
+          className="scene-door-knock"
+          aria-label="Knock on Buddy's door"
+          onClick={onKnock}
+        />
+      )}
+      {knocking && (
+        <span className="scene-knock-text" aria-hidden="true">
+          Knock! Knock!
+        </span>
+      )}
+    </div>
   );
 }
 
 // Home's backdrop: sky with the sun or moon in the right place for the time of
 // day, a house, a few friends, and — on top — Buddy, who comes out of the front
 // door (`children` is the lead Buddy; `bubble` its speech bubble).
-export default function HomeScene({ hour, action = "wave", children, bubble }) {
+// `presence` is where Buddy is: out (on the lawn), going (walking to the
+// door), in (home, door shut — knock to call it out) or coming (stepping out).
+export default function HomeScene({
+  hour,
+  action = "wave",
+  children,
+  bubble,
+  presence = "out",
+  knocking = false,
+  cycle = 0,
+  onKnock,
+}) {
   const phase = phaseOf(hour);
+  // The door swings open once the scene has mounted, and shuts when Buddy is in.
+  const [doorOpen, setDoorOpen] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setDoorOpen(presence !== "in"), 50);
+    return () => clearTimeout(id);
+  }, [presence]);
   // Friends watch Buddy's daily show: they cheer while it performs (the door
   // entrance takes 1.6s, the act about 4s), then go back to playing.
   const [cheering, setCheering] = useState(false);
@@ -199,7 +230,7 @@ export default function HomeScene({ hour, action = "wave", children, bubble }) {
       clearTimeout(on);
       clearTimeout(off);
     };
-  }, []);
+  }, [cycle]);
   useEffect(() => {
     if (said === null) return;
     const id = setTimeout(() => setSaid(null), 2200);
@@ -209,16 +240,20 @@ export default function HomeScene({ hour, action = "wave", children, bubble }) {
   const { body, x, y } = celestialPosition(hour);
   const night = phase === "night";
 
+  // Fills the whole page behind the controls (no box): the Home screen is the
+  // scene. Positioned but z-index:auto, so Buddy can still sit above the
+  // buttons while being dragged.
   return (
     <div
-      className={`relative h-60 w-full sm:h-72 ${sceneIsStill() ? "scene-still" : ""}`}
+      className={`scene absolute inset-0 ${sceneIsStill() ? "scene-still" : ""}`}
       aria-label="Buddy's neighbourhood"
       data-time-of-day={phase}
       data-buddy-action={action}
+      data-buddy-presence={presence}
     >
       <div
         aria-hidden="true"
-        className="absolute inset-0 overflow-hidden rounded-3xl shadow-md"
+        className="absolute inset-0 overflow-hidden"
         style={{ background: pal.sky, transition: "background 2s" }}
       >
         {night &&
@@ -246,16 +281,35 @@ export default function HomeScene({ hour, action = "wave", children, bubble }) {
           </>
         )}
         <div
-          className="absolute -bottom-6 -left-[10%] h-24 w-[70%] rounded-[50%]"
-          style={{ background: pal.hill2 }}
+          className="scene-hill absolute -left-[10%] w-[70%] rounded-[50%]"
+          style={{
+            background: pal.hill2,
+            bottom: "calc(var(--ground) - 4.5rem)",
+          }}
         />
         <div
-          className="absolute -bottom-8 -right-[5%] h-24 w-[85%] rounded-[50%]"
-          style={{ background: pal.hill }}
+          className="scene-hill absolute -right-[5%] w-[85%] rounded-[50%]"
+          style={{
+            background: pal.hill,
+            bottom: "calc(var(--ground) - 5.5rem)",
+          }}
+        />
+        <div
+          className="absolute inset-x-0 bottom-0"
+          style={{
+            background: pal.hill,
+            height: "calc(var(--ground) - 1.5rem)",
+          }}
         />
       </div>
 
-      <House phase={phase} doorOpen />
+      <House
+        phase={phase}
+        doorOpen={doorOpen}
+        presence={presence}
+        knocking={knocking}
+        onKnock={onKnock}
+      />
 
       {FRIENDS.map((f) => (
         <div
@@ -275,6 +329,11 @@ export default function HomeScene({ hour, action = "wave", children, bubble }) {
             pitch={f.pitch}
             label={`${f.color} friend`}
             onTap={() => {
+              // With Buddy indoors, a friend's tap is a knock on its door.
+              if (presence === "in") {
+                onKnock?.();
+                return;
+              }
               setSaid(f.color);
               // After the chirp the tap itself makes, the friend "talks" in
               // its own pitch and speed.
@@ -288,8 +347,8 @@ export default function HomeScene({ hour, action = "wave", children, bubble }) {
         </div>
       ))}
 
-      <div className="scene-lead">
-        <div className={`scene-act scene-act--${action}`}>
+      <div className={`scene-lead scene-lead--${presence}`}>
+        <div key={cycle} className={`scene-act scene-act--${action}`}>
           {children}
           {action === "sing" && (
             <>

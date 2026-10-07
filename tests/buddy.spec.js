@@ -628,3 +628,52 @@ test("Buddy's speech bubble stays inside the scene", async ({ page }) => {
   const bubble = await page.locator(".scene-bubble").boundingBox();
   expect(bubble.x + bubble.width).toBeLessThanOrEqual(scene.x + scene.width);
 });
+
+test("the Home scene fills the whole page, not a box", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1000 });
+  await page.goto("/");
+  const scene = await page.getByLabel("Buddy's neighbourhood").boundingBox();
+  expect(scene.x).toBe(0);
+  expect(scene.y).toBe(0);
+  expect(scene.width).toBe(820);
+  expect(scene.height).toBe(1000);
+});
+
+test("Buddy can go home, and knocking on the door brings it back out", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.__knocks = 0;
+    window.__audio.playKnock = () => window.__knocks++;
+    window.__audio.buddySay = () => {};
+  });
+  const scene = page.getByLabel("Buddy's neighbourhood");
+  const buddy = page.getByRole("button", { name: "Buddy", exact: true });
+  await expect(scene).toHaveAttribute("data-buddy-presence", "out");
+
+  await page.getByRole("button", { name: "Send Buddy home" }).click();
+  await expect(scene).toHaveAttribute("data-buddy-presence", "in");
+  await expect(buddy).toBeHidden();
+  await expect(page.getByText("Knock, knock on my door")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send Buddy home" }),
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Knock on Buddy's door" }).click();
+  await expect(scene).toHaveAttribute("data-buddy-presence", "out");
+  await expect(buddy).toBeVisible();
+  expect(await page.evaluate(() => window.__knocks)).toBe(1);
+});
+
+test("with Buddy indoors, tapping a friend knocks on the door", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => (window.__audio.buddySay = () => {}));
+  const scene = page.getByLabel("Buddy's neighbourhood");
+  await page.getByRole("button", { name: "Send Buddy home" }).click();
+  await expect(scene).toHaveAttribute("data-buddy-presence", "in");
+  await page.getByRole("button", { name: "mint friend" }).click();
+  await expect(scene).toHaveAttribute("data-buddy-presence", "out");
+});

@@ -114,6 +114,31 @@ export function playBuddyGiggle(pitch = 1) {
   return playBuddyChirp(pitch);
 }
 
+// Knock-knock on Buddy's front door: two low wooden thuds. Resolves with how
+// long the knock lasts (ms) so the caller can time what happens next.
+export async function playKnock() {
+  const ctx = await ensureAudioContextRunning();
+  if (!ctx) return 0;
+  const now = ctx.currentTime;
+  [0, 0.22].forEach((offset) => {
+    tone(ctx, {
+      freq: 190,
+      start: now + offset,
+      duration: 0.12,
+      type: "triangle",
+      gain: 0.4,
+    });
+    tone(ctx, {
+      freq: 120,
+      start: now + offset,
+      duration: 0.16,
+      type: "sine",
+      gain: 0.3,
+    });
+  });
+  return 450;
+}
+
 // One note per family member, for the tap-the-buddies xylophone.
 export async function playBuddyNote(i = 0) {
   const ctx = await ensureAudioContextRunning();
