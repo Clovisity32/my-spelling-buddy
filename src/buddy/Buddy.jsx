@@ -104,7 +104,7 @@ function Accessory({ kind }) {
   }
 }
 
-// mood: idle | wave | listen | slow | cheer | love | dance | sleepy
+// mood: idle | wave | listen | slow | cheer | love | dance | sleepy | chew
 // lookAt: {x, y} in -1..1 — pupils follow it, in any mood, so Buddy can
 // watch the pencil while otherwise idle.
 export default function Buddy({
@@ -602,6 +602,15 @@ export default function Buddy({
                   fill="#ff8aa0"
                 />
               </g>
+            ) : mood === "chew" ? (
+              <path
+                className="buddy-chew-mouth"
+                d="M84 150 Q100 184 116 150 Z"
+                fill="#7a2a3a"
+                stroke="#555"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+              />
             ) : (
               <path
                 d="M84 152 Q100 168 116 152"

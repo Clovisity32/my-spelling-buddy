@@ -92,6 +92,20 @@ const FRIENDS = [
   },
 ];
 
+// While a snack is held, every Buddy that hasn't eaten yet gets a glowing
+// target over it: drop the snack here (or tap here) to feed it.
+function FeedTarget({ id, label, onFeed }) {
+  return (
+    <button
+      type="button"
+      className="feed-target"
+      data-feed-id={id}
+      aria-label={`Feed ${label}`}
+      onClick={() => onFeed?.(id)}
+    />
+  );
+}
+
 function Cloud({ top, size, delay }) {
   return (
     <div
@@ -210,6 +224,13 @@ export default function HomeScene({
   knocking = false,
   cycle = 0,
   onKnock,
+  // Feeding: `holding` is true while a snack is picked up; `fed` are the
+  // Buddies already fed from this basket; eatingId munches, happyId cheers.
+  holding = false,
+  fed = [],
+  eatingId = null,
+  happyId = null,
+  onFeed,
 }) {
   const phase = phaseOf(hour);
   // The door swings open once the scene has mounted, and shuts when Buddy is in.
@@ -231,6 +252,13 @@ export default function HomeScene({
       clearTimeout(off);
     };
   }, [cycle]);
+  // A fed friend thanks you in its own voice.
+  useEffect(() => {
+    const f = FRIENDS.find((x) => x.color === happyId);
+    if (!f) return;
+    setSaid(f.color);
+    window.__audio?.playBuddyBabble?.("Yum yum!", f.pitch, f.tempo);
+  }, [happyId]);
   useEffect(() => {
     if (said === null) return;
     const id = setTimeout(() => setSaid(null), 2200);
@@ -323,7 +351,17 @@ export default function HomeScene({
             </span>
           )}
           <Buddy
-            mood={night ? "sleepy" : cheering ? "cheer" : f.mood}
+            mood={
+              eatingId === f.color
+                ? "chew"
+                : happyId === f.color
+                  ? "cheer"
+                  : night
+                    ? "sleepy"
+                    : cheering
+                      ? "cheer"
+                      : f.mood
+            }
             color={f.color}
             size={f.size}
             pitch={f.pitch}
@@ -344,12 +382,22 @@ export default function HomeScene({
               );
             }}
           />
+          {holding && !fed.includes(f.color) && (
+            <FeedTarget
+              id={f.color}
+              label={`${f.color} friend`}
+              onFeed={onFeed}
+            />
+          )}
         </div>
       ))}
 
       <div className={`scene-lead scene-lead--${presence}`}>
         <div key={cycle} className={`scene-act scene-act--${action}`}>
           {children}
+          {holding && presence === "out" && !fed.includes("lead") && (
+            <FeedTarget id="lead" label="Buddy" onFeed={onFeed} />
+          )}
           {action === "sing" && (
             <>
               <span className="scene-note scene-note--a" aria-hidden="true">

@@ -4,6 +4,8 @@
 // async interface and changing one import, not touching any screen.
 import * as idb from "./idb.js";
 
+import { pickBasketFoods } from "../buddy/foods.js";
+
 const DEFAULT_CHILD_NAME = "Chloe";
 
 function uid() {
@@ -327,6 +329,55 @@ export async function getBuddyStyle() {
 
 export async function setBuddyStyle({ color, accessory }) {
   await idb.put("settings", { id: "buddy", color, accessory });
+}
+
+// --- Food basket ---------------------------------------------------------
+// Finishing a whole list earns one basket of snacks to feed the Buddies. The
+// row keeps which sessions already paid out (so Celebration re-mounting, or
+// a redo from Review, can never pay twice), the snacks still in the basket,
+// and which Buddies have already been fed from it (one snack each).
+
+async function readBasket() {
+  const row = await idb.get("settings", "basket");
+  return {
+    id: "basket",
+    claimed: row?.claimed || [],
+    foods: row?.foods || [],
+    fed: row?.fed || [],
+  };
+}
+
+export async function getBasket() {
+  const { foods, fed } = await readBasket();
+  return { foods, fed };
+}
+
+// True if this session has a basket (now or already) — safe to call twice.
+export async function claimBasket(sessionId) {
+  const row = await readBasket();
+  if (row.claimed.includes(sessionId)) return true;
+  await idb.put("settings", {
+    ...row,
+    claimed: [...row.claimed, sessionId],
+    foods: [...row.foods, ...pickBasketFoods()],
+    fed: [],
+  });
+  return true;
+}
+
+// Feed one snack to one Buddy. Returns the new basket, or null if that Buddy
+// has already eaten from this basket or the snack isn't there.
+export async function feedBuddy(buddyId, foodId) {
+  const row = await readBasket();
+  const at = row.foods.indexOf(foodId);
+  if (at < 0 || row.fed.includes(buddyId)) return null;
+  const next = {
+    ...row,
+    foods: row.foods.filter((_, i) => i !== at),
+    fed: [...row.fed, buddyId],
+  };
+  await idb.put("settings", next);
+  return { foods: next.foods, fed: next.fed };
 }
 
 // Timestamp of the most recent completed practice, or null if she has never

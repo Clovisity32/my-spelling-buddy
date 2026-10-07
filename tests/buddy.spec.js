@@ -677,3 +677,90 @@ test("with Buddy indoors, tapping a friend knocks on the door", async ({
   await page.getByRole("button", { name: "mint friend" }).click();
   await expect(scene).toHaveAttribute("data-buddy-presence", "out");
 });
+
+test("finishing a list earns a food basket the Buddies can eat, one snack each", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    window.__audio.buddySay = () => {};
+    window.__audio.playMunch = () => 0;
+    window.__audio.playBuddyBabble = () => {};
+    await window.__storage.claimBasket("basket-test-1");
+    await window.__storage.claimBasket("basket-test-1"); // same session: no second basket
+  });
+  await page.reload();
+  const feedBtn = page.getByRole("button", { name: /Feed the Buddies \(4\)/ });
+  await expect(feedBtn).toBeVisible();
+  await feedBtn.click();
+
+  const mint = page.getByRole("button", { name: "mint friend", exact: true });
+  await page
+    .getByRole("button", { name: /^Pick up/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Feed mint friend" }).click();
+  await expect(mint).toHaveAttribute("data-buddy-mood", "chew");
+  await expect(mint).toHaveAttribute("data-buddy-mood", "cheer", {
+    timeout: 4000,
+  });
+  await expect(page.getByRole("button", { name: /^Pick up/ })).toHaveCount(3);
+
+  // mint has had its snack: it is no longer a feeding target
+  await page
+    .getByRole("button", { name: /^Pick up/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Feed mint friend" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Feed rose friend" }),
+  ).toBeVisible();
+});
+
+test("a snack can be dragged onto Buddy", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    window.__audio.buddySay = () => {};
+    window.__audio.playMunch = () => 0;
+    await window.__storage.claimBasket("basket-test-2");
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /Feed the Buddies/ }).click();
+  const snack = await page
+    .getByRole("button", { name: /^Pick up/ })
+    .first()
+    .boundingBox();
+  await page.mouse.move(snack.x + snack.width / 2, snack.y + snack.height / 2);
+  await page.mouse.down();
+  const target = await page
+    .getByRole("button", { name: "Feed Buddy", exact: true })
+    .boundingBox();
+  await page.mouse.move(
+    target.x + target.width / 2,
+    target.y + target.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "chew");
+});
+
+test("finishing a whole list announces a basket of food on Celebration", async ({
+  page,
+}) => {
+  await seedList(page, "Basket list");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Practise" }).click();
+  await page.getByText("Basket list").click();
+  await scribble(page);
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Next word" }).click();
+  await expect(page.getByText("You earned a basket of food")).toBeVisible();
+  await page.getByRole("button", { name: "Go and feed the Buddies" }).click();
+  await expect(
+    page.getByRole("button", { name: /Feed the Buddies \(4\)/ }),
+  ).toBeVisible();
+});

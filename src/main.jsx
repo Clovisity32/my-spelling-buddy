@@ -8,6 +8,7 @@ import * as sounds from "./audio/sounds.js";
 import * as recorder from "./audio/recorder.js";
 import * as buddyHug from "./audio/buddy-hug.js";
 import * as buddyVoice from "./audio/buddy-voice.js";
+import * as munch from "./audio/munch.js";
 import * as playback from "./audio/playback.js";
 import * as tts from "./audio/tts.js";
 import * as strokes from "./canvas/strokes.js";
@@ -20,6 +21,7 @@ if (typeof window !== "undefined") {
     ...sounds,
     ...buddyHug,
     ...buddyVoice,
+    ...munch,
     ...recorder,
     ...playback,
     ...tts,

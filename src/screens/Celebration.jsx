@@ -23,6 +23,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [practiceNumber, setPracticeNumber] = useState(1);
   const [newSticker, setNewSticker] = useState(null);
   const [unlocked, setUnlocked] = useState([]);
+  const [gotBasket, setGotBasket] = useState(false);
   const buddyStyle = useBuddyStyle();
   const party = useMemo(pickPartyStyle, []);
 
@@ -54,6 +55,8 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
           ),
         );
       }
+      // Finishing the whole list earns a basket of snacks for the Buddies.
+      setGotBasket(await window.__storage.claimBasket(sessionId));
       const words = await window.__storage.getWords(listId);
       setWordCount(words.length);
       setChildName(await window.__storage.getChildName());
@@ -121,6 +124,21 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
               className="btn btn-secondary btn-sm mt-2"
             >
               🎨 Dress up Buddy
+            </button>
+          </div>
+        )}
+        {gotBasket && (
+          <div className="mt-3 text-base text-orange-600">
+            <p>
+              <span className="text-2xl">🧺</span> You earned a basket of food
+              for the Buddies!
+            </p>
+            <button
+              type="button"
+              onClick={() => onNavigate("home")}
+              className="btn btn-secondary btn-sm mt-2"
+            >
+              🍎 Go and feed the Buddies
             </button>
           </div>
         )}

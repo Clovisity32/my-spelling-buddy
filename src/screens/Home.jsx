@@ -3,6 +3,7 @@ import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import HomeScene from "../buddy/HomeScene.jsx";
 import { currentHour, dayNumber, sceneIsStill } from "../buddy/timeOfDay.js";
+import { foodById } from "../buddy/foods.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
   getPose,
@@ -51,6 +52,14 @@ export default function Home({ onNavigate }) {
   const [knocking, setKnocking] = useState(false);
   const [cycle, setCycle] = useState(0); // bumps each time Buddy steps out
   const timers = useRef([]);
+  // Food basket: snacks still in it, who has eaten, which snack is picked up,
+  // who is chewing / happy right now, and where a dragged snack is.
+  const [basket, setBasket] = useState({ foods: [], fed: [] });
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [holding, setHolding] = useState(null);
+  const [ghost, setGhost] = useState(null);
+  const [eating, setEating] = useState(null);
+  const [happy, setHappy] = useState(null);
   const buddyStyle = useBuddyStyle();
   const [hour, setHour] = useState(currentHour);
   const action = useMemo(
@@ -73,6 +82,7 @@ export default function Home({ onNavigate }) {
       setLatestList(lists[0]);
       setLatestWords(await window.__storage.getWords(lists[0].id));
     })();
+    (async () => setBasket(await window.__storage.getBasket()))();
     (async () =>
       setStickersEnabled(await window.__storage.getStickersEnabled()))();
     (async () => setChildName(await window.__storage.getChildName()))();
@@ -88,11 +98,16 @@ export default function Home({ onNavigate }) {
   // Never-practised (daysAway 0) is a fresh start, not "sleepy". Sleepy is a
   // gentle "I missed you", never a scolding — and one tap wakes Buddy up.
   const sleepy = daysAway >= SLEEPY_AFTER_DAYS && !woke;
-  const buddyMood = sleepy
-    ? "sleepy"
-    : streak >= DANCE_STREAK
-      ? "dance"
-      : "wave";
+  const buddyMood =
+    eating === "lead"
+      ? "chew"
+      : happy === "lead"
+        ? "cheer"
+        : sleepy
+          ? "sleepy"
+          : streak >= DANCE_STREAK
+            ? "dance"
+            : "wave";
   const greeting =
     presence === "in"
       ? "Knock, knock on my door to call me out!"
@@ -134,6 +149,69 @@ export default function Home({ onNavigate }) {
     }, 1000);
   }
 
+  function toggleTray() {
+    if (trayOpen) {
+      setTrayOpen(false);
+      setHolding(null);
+      return;
+    }
+    changePose(ZERO_POSE); // feeding targets sit on Buddy's home spot
+    setTrayOpen(true);
+  }
+
+  // Feed the held snack to a Buddy: it munches for 2s, then cheers.
+  async function feed(buddyId, foodId = holding) {
+    if (!foodId || eating) return;
+    const next = await window.__storage.feedBuddy(buddyId, foodId);
+    if (!next) return;
+    setBasket(next);
+    setHolding(null);
+    setHappy(null);
+    setEating(buddyId);
+    window.__audio.playMunch?.(1, 6);
+    timers.current.push(
+      setTimeout(() => {
+        setEating(null);
+        setHappy(buddyId);
+        if (buddyId === "lead") {
+          const line = "Yum yum! Thank you!";
+          setBubble(line);
+          window.__audio.buddySay?.(line);
+        }
+        timers.current.push(setTimeout(() => setHappy(null), 2600));
+      }, 2000),
+    );
+  }
+
+  // Pick up a snack: drag it onto a Buddy and let go, or just tap it and then
+  // tap a Buddy. Tapping the held snack again puts it back.
+  function pickUp(e, foodId) {
+    const wasHolding = holding === foodId;
+    const start = { x: e.clientX, y: e.clientY };
+    let moved = false;
+    setHolding(foodId);
+    function move(ev) {
+      if (!moved && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 10)
+        return;
+      moved = true;
+      setGhost({ x: ev.clientX, y: ev.clientY, id: foodId });
+    }
+    function up(ev) {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      setGhost(null);
+      const hit = document
+        .elementsFromPoint(ev.clientX, ev.clientY)
+        .find((el) => el.dataset?.feedId);
+      if (hit) feed(hit.dataset.feedId, foodId);
+      else if (moved || wasHolding) setHolding(null);
+    }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
+
   function changePose(next) {
     setPoseState(next);
     setSavedPose(next);
@@ -167,6 +245,11 @@ export default function Home({ onNavigate }) {
         knocking={knocking}
         cycle={cycle}
         onKnock={knock}
+        holding={!!holding}
+        fed={basket.fed}
+        eatingId={eating}
+        happyId={happy}
+        onFeed={feed}
       >
         <Buddy
           mood={buddyMood}
@@ -184,6 +267,36 @@ export default function Home({ onNavigate }) {
       <h1 className="t-hero !text-2xl sm:!text-4xl relative z-10 mt-1 self-center rounded-full bg-white/75 px-6 py-1 text-center shadow-sm backdrop-blur">
         My Spelling Buddy
       </h1>
+
+      {trayOpen && basket.foods.length > 0 && (
+        <div className="relative z-10 mt-3 flex items-center justify-center gap-2 self-center rounded-2xl bg-white/90 px-3 py-2 shadow-md backdrop-blur">
+          <p className="text-sm font-semibold text-slate-600">
+            Give a snack to a Buddy:
+          </p>
+          {basket.foods.map((id, i) => (
+            <button
+              key={`${id}-${i}`}
+              type="button"
+              aria-label={`Pick up ${foodById(id)?.label}`}
+              aria-pressed={holding === id}
+              onPointerDown={(e) => pickUp(e, id)}
+              className={`touch-none select-none rounded-xl p-1 text-3xl transition active:scale-95 ${holding === id ? "bg-amber-200 ring-2 ring-amber-400" : "hover:bg-slate-100"}`}
+            >
+              {foodById(id)?.emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {ghost && (
+        <span
+          className="food-ghost"
+          style={{ left: ghost.x, top: ghost.y }}
+          aria-hidden="true"
+        >
+          {foodById(ghost.id)?.emoji}
+        </span>
+      )}
 
       {latestList && (
         <div className="card relative z-10 mt-3 max-h-28 w-full overflow-y-auto bg-white/85 text-left backdrop-blur">
@@ -248,6 +361,18 @@ export default function Home({ onNavigate }) {
         >
           🎨 Dress up Buddy
         </button>
+        {basket.foods.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleTray}
+            className="btn btn-secondary btn-sm"
+          >
+            🧺{" "}
+            {trayOpen
+              ? "Close basket"
+              : `Feed the Buddies (${basket.foods.length})`}
+          </button>
+        )}
         {presence === "out" && (
           <button
             type="button"
