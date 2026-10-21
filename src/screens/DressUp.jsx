@@ -11,6 +11,7 @@ import {
 import {
   COLOR_UNLOCKS,
   ACCESSORY_UNLOCKS,
+  FRIEND_WARDROBE_UNLOCKS,
   isUnlocked,
 } from "../buddy/unlocks.js";
 
@@ -21,12 +22,15 @@ const LOVE_LINES = [
   "That's my favourite!",
 ];
 
-// Pick Buddy's colour and accessory. Choices unlock with completed
+// Pick Buddy's colour and accessory — and, once a friend's wardrobe has opened,
+// what that friend wears (any accessory already unlocked). Choices unlock with completed
 // practices (effort only) — locked ones stay visible with how many more it
 // takes, so there's always something to look forward to. Changes save the
 // moment she taps, so there's no Save button to forget.
 export default function DressUp({ onNavigate }) {
   const [style, setStyle] = useState(null);
+  const [friendStyles, setFriendStyles] = useState({});
+  const [who, setWho] = useState("lead"); // "lead" or a friend's colour
   const [total, setTotal] = useState(0);
   const [mood, setMood] = useState("wave");
   // Same pose as Home: she can spin and resize Buddy to show off what it is
@@ -41,6 +45,7 @@ export default function DressUp({ onNavigate }) {
   useEffect(() => {
     (async () => {
       setStyle(await window.__storage.getBuddyStyle());
+      setFriendStyles(await window.__storage.getFriendStyles());
       setTotal(await window.__storage.getTotalCompletedSessionCount());
     })();
   }, []);
@@ -48,9 +53,14 @@ export default function DressUp({ onNavigate }) {
   if (!style) return null;
 
   async function choose(patch) {
-    const next = { ...style, ...patch };
-    setStyle(next);
-    await window.__storage.setBuddyStyle(next);
+    if (who === "lead") {
+      const next = { ...style, ...patch };
+      setStyle(next);
+      await window.__storage.setBuddyStyle(next);
+    } else {
+      setFriendStyles((f) => ({ ...f, [who]: patch.accessory }));
+      await window.__storage.setFriendStyle(who, patch.accessory);
+    }
     window.__audio.playBuddyNote?.(Math.floor(Math.random() * 7));
     window.__audio.buddySay?.(
       LOVE_LINES[Math.floor(Math.random() * LOVE_LINES.length)],
@@ -72,8 +82,10 @@ export default function DressUp({ onNavigate }) {
       <div className="flex shrink-0 justify-center pt-2">
         <Buddy
           mood={mood}
-          color={style.color}
-          accessory={style.accessory}
+          color={who === "lead" ? style.color : who}
+          accessory={
+            who === "lead" ? style.accessory : friendStyles[who] || "none"
+          }
           size={110}
           label="Buddy"
           movable
@@ -91,8 +103,43 @@ export default function DressUp({ onNavigate }) {
           ↺ Put Buddy back
         </button>
       )}
+      <div className="mt-2 flex shrink-0 flex-wrap justify-center gap-2">
+        {[
+          { id: "lead", label: "Buddy", threshold: 0 },
+          ...FRIEND_WARDROBE_UNLOCKS,
+        ].map((w) => {
+          const open = isUnlocked(w, total);
+          return (
+            <button
+              key={w.id}
+              type="button"
+              disabled={!open}
+              onClick={() => setWho(w.id)}
+              aria-label={
+                w.id === "lead"
+                  ? "Outfits for Buddy"
+                  : open
+                    ? `Outfits for ${w.id} friend`
+                    : `Outfits for ${w.id} friend, locked`
+              }
+              aria-pressed={who === w.id}
+              title={open ? w.label : lockedHint(w)}
+              className={`flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm font-semibold shadow transition active:scale-95 ${who === w.id ? "ring-4 ring-emerald-400" : ""} ${open ? "" : "opacity-40 grayscale"}`}
+            >
+              <span
+                className="inline-block h-4 w-4 rounded-full border border-slate-300"
+                style={{
+                  background:
+                    BUDDY_COLORS[w.id === "lead" ? style.color : w.id].body,
+                }}
+              />
+              {open ? w.label : `🔒 ${w.threshold}`}
+            </button>
+          );
+        })}
+      </div>
       <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto pb-2 pt-4">
-
+        {who === "lead" && (
         <section className="w-full">
           <p className="t-label mb-2">Colour</p>
           <div className="flex flex-wrap gap-3">
@@ -119,13 +166,16 @@ export default function DressUp({ onNavigate }) {
             })}
           </div>
         </section>
+        )}
 
         <section className="w-full">
           <p className="t-label mb-2">Accessory</p>
           <div className="flex flex-wrap gap-3">
             {ACCESSORY_UNLOCKS.map((a) => {
               const open = isUnlocked(a, total);
-              const on = style.accessory === a.id;
+              const on =
+                (who === "lead" ? style.accessory : friendStyles[who] || "none") ===
+                a.id;
               return (
                 <button
                   key={a.id}

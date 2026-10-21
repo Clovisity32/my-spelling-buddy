@@ -335,6 +335,23 @@ export async function setBuddyStyle({ color, accessory }) {
   await idb.put("settings", { id: "buddy", color, accessory });
 }
 
+// What each small friend is wearing: { lavender: "crown", ... }. Which
+// wardrobes are open is derived from the practice count (buddy/unlocks.js).
+export async function getFriendStyles() {
+  const row = await idb.get("settings", "friendStyles");
+  const { id, ...styles } = row || {};
+  return styles;
+}
+
+export async function setFriendStyle(color, accessory) {
+  const row = await idb.get("settings", "friendStyles");
+  await idb.put("settings", {
+    ...row,
+    id: "friendStyles",
+    [color]: accessory,
+  });
+}
+
 // --- Food basket ---------------------------------------------------------
 // Finishing a whole list earns one basket of snacks to feed the Buddies. The
 // row keeps which sessions already paid out (so Celebration re-mounting, or

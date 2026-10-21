@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Buddy, { BUDDY_COLORS } from "./Buddy.jsx";
 import "./scene.css";
 import { celestialPosition, phaseOf, sceneIsStill } from "./timeOfDay.js";
+import { gardenFor } from "./garden.js";
 
 // Sky colours, ground and window light for each part of the day.
 const SKY = {
@@ -206,6 +207,41 @@ function House({ phase, doorOpen, presence, knocking, onKnock }) {
   );
 }
 
+// What she has earned for the lawn (garden.js): a flower bed, a tree, a pond…
+// Drawn behind everyone, never in the way of a tap.
+function Garden({ total, night }) {
+  const have = new Set(gardenFor(total).map((g) => g.id));
+  if (have.size === 0) return null;
+  const item = (id, cls, content) =>
+    have.has(id) && (
+      <span key={id} data-garden-item={id} className={`garden-${cls}`}>
+        {content}
+      </span>
+    );
+  return (
+    <>
+    <div className="scene-garden" aria-hidden="true">
+      {item("rainbow", "rainbow", "🌈")}
+      {item("flowers", "flowers", "🌷🌻🌷")}
+      {item("tree", "tree", "🌳")}
+      {item("mailbox", "mailbox", "📮")}
+      {item("slide", "slide", "🛝")}
+      {item("pond", "pond", <span className="garden-duck">🦆</span>)}
+      {item("fountain", "fountain", "⛲")}
+    </div>
+    {/* In front of the houses, or the roofs would hide them. */}
+    {night && have.has("lights") && (
+      <div className="scene-garden scene-garden--front" aria-hidden="true">
+        <span data-garden-item="lights" className="garden-lights garden-lights--1">
+          ✨✨✨✨✨
+        </span>
+        <span className="garden-lights garden-lights--2">✨✨✨✨</span>
+      </div>
+    )}
+    </>
+  );
+}
+
 // True on a phone-width screen, where the lawn is short: the friends shrink
 // (and scene.css lets them stand behind Buddy) so they aren't all piled up.
 function useNarrow() {
@@ -321,6 +357,9 @@ export default function HomeScene({
   sharedEat = false,
   hungry = false,
   partyAll = false,
+  // Practices completed (for the garden) and what each friend wears.
+  total = 0,
+  friendAccessories = {},
   // The small friends (see useFriends): where each one is, how to move one
   // that's picked up, and the knock on their cottage door.
   friends,
@@ -433,6 +472,8 @@ export default function HomeScene({
         />
       </div>
 
+      <Garden total={total} night={night} />
+
       <House
         phase={phase}
         doorOpen={doorOpen}
@@ -494,6 +535,7 @@ export default function HomeScene({
               snack={eatingId === f.color ? eatingFood : null}
               shared={sharedEat}
               color={f.color}
+              accessory={friendAccessories[f.color] || "none"}
               size={narrow ? f.size * 0.75 : f.size}
               pitch={f.pitch}
               label={`${f.color} friend`}

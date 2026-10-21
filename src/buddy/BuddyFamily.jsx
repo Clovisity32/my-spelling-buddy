@@ -42,6 +42,7 @@ export default function BuddyFamily({
   mood = "dance",
   leadColor = "peach",
   leadAccessory = "none",
+  friendAccessories = {}, // { colour: accessory } for everyone but the lead
   className = "",
   party = "dance",
 }) {
@@ -97,7 +98,9 @@ export default function BuddyFamily({
                     ? "peach"
                     : m.color
               }
-              accessory={i === LEAD ? leadAccessory : "none"}
+              accessory={
+                i === LEAD ? leadAccessory : friendAccessories[m.color] || "none"
+              }
               size={m.size * 0.62}
               walking={party === "run"}
               pitch={0.8 + i * 0.09}

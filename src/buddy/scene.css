@@ -46,6 +46,97 @@
 .scene-lawn-b {
   left: var(--door2-x);
 }
+/* The garden she has earned: behind the houses and characters. */
+.scene-garden {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.scene-garden--front {
+  z-index: 6;
+}
+.scene-garden > span {
+  position: absolute;
+  line-height: 1;
+}
+.garden-rainbow {
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  font-size: min(16vw, 7rem);
+  opacity: 0.85;
+}
+.garden-flowers {
+  left: 33%;
+  bottom: calc(var(--ground) - 1.1rem);
+  font-size: 1.6rem;
+  letter-spacing: 0.15rem;
+}
+.garden-tree {
+  left: 58%;
+  bottom: calc(var(--ground) + 0.2rem);
+  font-size: 5.5rem;
+}
+.garden-mailbox {
+  left: 1%;
+  bottom: calc(var(--ground) - 1.5rem);
+  font-size: 2rem;
+}
+.garden-slide {
+  left: 50%;
+  bottom: calc(var(--ground) + 0.4rem);
+  font-size: 3.6rem;
+}
+.garden-pond {
+  left: 66%;
+  bottom: calc(var(--ground) - 1.9rem);
+  display: flex;
+  width: 6rem;
+  height: 1.7rem;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #4aa3dd;
+  border-radius: 50%;
+  background: #7fd0f7;
+}
+.garden-duck {
+  font-size: 1.3rem;
+  animation: garden-bob 2.4s ease-in-out infinite;
+}
+.garden-fountain {
+  left: 74%;
+  bottom: calc(var(--ground) + 0.6rem);
+  font-size: 3.4rem;
+}
+/* Fairy lights strung along each roof's eaves, lit at night. */
+.garden-lights {
+  letter-spacing: 0.1rem;
+  font-size: 1.1rem;
+  text-align: center;
+  white-space: nowrap;
+  animation: scene-twinkle 2.4s ease-in-out infinite;
+}
+.garden-lights--1 {
+  left: 4%;
+  width: var(--house-w);
+  bottom: calc(var(--ground) - 0.8rem + var(--house-w) * 0.47);
+}
+.garden-lights--2 {
+  right: 3%;
+  width: var(--house2-w);
+  bottom: calc(var(--ground) - 0.8rem + var(--house2-w) * 0.4);
+  animation-delay: 0.8s;
+}
+@keyframes garden-bob {
+  0%,
+  100% {
+    transform: translate(-0.4rem, 0);
+  }
+  50% {
+    transform: translate(0.4rem, -2px);
+  }
+}
 .scene-hill {
   height: 9rem;
 }
@@ -618,5 +709,9 @@
   .scene-sparkles span {
     animation: none;
     opacity: 0.8;
+  }
+  .garden-duck,
+  .garden-lights {
+    animation: none;
   }
 }

@@ -9,6 +9,7 @@ import {
   sceneIsStill,
 } from "../buddy/timeOfDay.js";
 import useFriends from "../buddy/useFriends.js";
+import useFriendStyles from "../buddy/useFriendStyles.js";
 import { foodById, isGolden } from "../buddy/foods.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
@@ -75,6 +76,8 @@ export default function Home({ onNavigate }) {
   const [sharedEat, setSharedEat] = useState(false);
   const [partyAll, setPartyAll] = useState(false); // the golden treat
   const buddyStyle = useBuddyStyle();
+  const friendStyles = useFriendStyles();
+  const [totalPractices, setTotalPractices] = useState(0); // for the garden
   const [hour, setHour] = useState(currentHour);
   // The small friends wander, go home and come out on their own — except in
   // the test browser and for anyone who asked for reduced motion.
@@ -152,6 +155,10 @@ export default function Home({ onNavigate }) {
       setLatestWords(await window.__storage.getWords(lists[0].id));
     })();
     (async () => setBasket(await window.__storage.getBasket()))();
+    (async () =>
+      setTotalPractices(
+        await window.__storage.getTotalCompletedSessionCount(),
+      ))();
     (async () =>
       setStickersEnabled(await window.__storage.getStickersEnabled()))();
     (async () => setChildName(await window.__storage.getChildName()))();
@@ -375,6 +382,8 @@ export default function Home({ onNavigate }) {
         eatingFood={foodById(eatingFoodId)}
         sharedEat={sharedEat}
         hungry={trayOpen}
+        total={totalPractices}
+        friendAccessories={friendStyles}
         partyAll={partyAll}
         onFeed={feed}
         friends={friends.friends}

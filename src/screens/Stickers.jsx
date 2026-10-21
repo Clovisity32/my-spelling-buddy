@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
-import { STICKERS, getEarnedStickers } from "../stickers.js";
+import {
+  STICKERS,
+  getEarnedStickers,
+  getNextSticker,
+} from "../stickers.js";
 
 export default function Stickers({ onNavigate }) {
   const [total, setTotal] = useState(0);
@@ -11,7 +15,16 @@ export default function Stickers({ onNavigate }) {
       setTotal(await window.__storage.getTotalCompletedSessionCount()))();
   }, []);
 
-  const earned = new Set(getEarnedStickers(total).map((s) => s.threshold));
+  const earnedList = getEarnedStickers(total);
+  const earned = new Set(earnedList.map((s) => s.threshold));
+  const next = getNextSticker(total);
+  // Everything on the fixed ladder, then any Superstars she has earned beyond
+  // it, then the one that is next — so there is always a sticker to aim for.
+  const shown = [
+    ...STICKERS,
+    ...earnedList.filter((s) => !STICKERS.some((f) => f.threshold === s.threshold)),
+    ...(STICKERS.some((s) => s.threshold === next.threshold) ? [] : [next]),
+  ];
 
   return (
     <Screen max="max-w-2xl">
@@ -20,8 +33,12 @@ export default function Stickers({ onNavigate }) {
         Earned just for practising, no matter how it goes — {total} practice
         {total === 1 ? "" : "s"} completed so far.
       </p>
+      <p className="mb-3 text-sm font-semibold text-violet-600">
+        Next sticker in {next.threshold - total} practice
+        {next.threshold - total === 1 ? "" : "s"}!
+      </p>
       <div className="grid flex-1 grid-cols-3 gap-4 overflow-y-auto pb-1 sm:grid-cols-4">
-        {STICKERS.map((s) => {
+        {shown.map((s) => {
           const isEarned = earned.has(s.threshold);
           return (
             <div

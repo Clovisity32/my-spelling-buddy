@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import BuddyFamily, { pickPartyStyle } from "../buddy/BuddyFamily.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
+import useFriendStyles from "../buddy/useFriendStyles.js";
 import { getJustUnlocked } from "../buddy/unlocks.js";
 import { getJustEarnedSticker } from "../stickers.js";
 
@@ -25,6 +26,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [unlocked, setUnlocked] = useState([]);
   const [basket, setBasket] = useState(null); // { golden } once claimed
   const buddyStyle = useBuddyStyle();
+  const friendStyles = useFriendStyles();
   const party = useMemo(pickPartyStyle, []);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
         party={party}
         leadColor={buddyStyle.color}
         leadAccessory={buddyStyle.accessory}
+        friendAccessories={friendStyles}
       />
       <h2 className="text-3xl font-bold tracking-tight text-emerald-600 sm:text-4xl">
         You finished the whole list, {childName}!
