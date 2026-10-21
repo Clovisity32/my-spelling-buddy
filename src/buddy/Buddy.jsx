@@ -128,6 +128,10 @@ export default function Buddy({
   movable = false,
   pose = null,
   onPoseChange = null,
+  // Fired once when a drag or twist is let go; `snap` skips the glide so the
+  // parent can swap the pose for an equivalent position without a visible jump.
+  onDragEnd = null,
+  snap = false,
 }) {
   const [reaction, setReaction] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -318,6 +322,7 @@ export default function Buddy({
       boingTimer.current = setTimeout(() => setBoing(false), 700);
       // The click that follows this release must not count as a tap.
       setTimeout(() => (dragged.current = false), 0);
+      onDragEnd?.();
       return;
     }
     release();
@@ -396,7 +401,7 @@ export default function Buddy({
           // A transform, so moving Buddy never reflows the screen. Lean tips
           // it into the direction of travel while it's being carried.
           transform: `translate(${(pose || poseRef.current).x}px, ${(pose || poseRef.current).y}px) rotate(${(pose || poseRef.current).r + lean}deg) scale(${(pose || poseRef.current).s ?? 1})`,
-          transition: dragging ? "none" : "transform 0.35s ease-out",
+          transition: dragging || snap ? "none" : "transform 0.35s ease-out",
           position: "relative",
           zIndex: 30,
           touchAction: "none",

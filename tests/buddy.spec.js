@@ -764,3 +764,42 @@ test("finishing a whole list announces a basket of food on Celebration", async (
     page.getByRole("button", { name: /Feed the Buddies \(4\)/ }),
   ).toBeVisible();
 });
+
+test("the four small friends have their own cottage, and its door can be knocked on", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const knock = page.getByRole("button", { name: "Knock on the friends' door" });
+  await expect(knock).toBeVisible();
+  // everyone is out on the lawn between the two houses
+  const house = await page.locator(".scene-house").boundingBox();
+  const cottage = await page.locator(".scene-house2").boundingBox();
+  for (const colour of ["lavender", "mint", "butter", "rose"]) {
+    const f = await page
+      .getByRole("button", { name: `${colour} friend`, exact: true })
+      .boundingBox();
+    expect(f.x).toBeGreaterThan(house.x + house.width);
+    expect(f.x + f.width).toBeLessThan(cottage.x + cottage.width);
+  }
+});
+
+test("a small friend can be picked up and put down somewhere else on the lawn", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const mint = page.getByRole("button", { name: "mint friend", exact: true });
+  const before = await mint.boundingBox();
+  const cx = before.x + before.width / 2;
+  const cy = before.y + before.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 40, cy - 60, { steps: 5 });
+  await page.mouse.move(cx + 80, cy - 40, { steps: 5 });
+  await page.mouse.up();
+  // it settles back on the ground, but further along than where it started
+  await expect
+    .poll(async () => Math.round((await mint.boundingBox()).y))
+    .toBe(Math.round(before.y));
+  const after = await mint.boundingBox();
+  expect(after.x).toBeGreaterThan(before.x + 50);
+});

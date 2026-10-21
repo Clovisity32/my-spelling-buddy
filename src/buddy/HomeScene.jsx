@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import Buddy from "./Buddy.jsx";
+import { useEffect, useRef, useState } from "react";
+import Buddy, { BUDDY_COLORS } from "./Buddy.jsx";
 import "./scene.css";
 import { celestialPosition, phaseOf, sceneIsStill } from "./timeOfDay.js";
 
@@ -49,7 +49,6 @@ const FRIENDS = [
   {
     color: "lavender",
     move: "spin",
-    left: "58%",
     size: 54,
     mood: "dance",
     delay: "0s",
@@ -60,7 +59,6 @@ const FRIENDS = [
   {
     color: "mint",
     move: "hop",
-    left: "68%",
     size: 62,
     mood: "wave",
     delay: "0.3s",
@@ -71,7 +69,6 @@ const FRIENDS = [
   {
     color: "butter",
     move: "slide",
-    left: "78%",
     size: 56,
     mood: "dance",
     delay: "0.6s",
@@ -82,7 +79,6 @@ const FRIENDS = [
   {
     color: "rose",
     move: "roll",
-    left: "88%",
     size: 50,
     mood: "wave",
     delay: "0.9s",
@@ -210,6 +206,76 @@ function House({ phase, doorOpen, presence, knocking, onKnock }) {
   );
 }
 
+// The cottage where the four small friends live: a blue roof with a pennant in
+// each friend's colour, round windows, and a door that swings open whenever
+// one of them walks in or out.
+function FriendsHouse({ phase, doorOpen, onKnock }) {
+  const { window: win } = SKY[phase];
+  return (
+    <div className="scene-house2" data-door={doorOpen ? "open" : "closed"}>
+      <svg viewBox="0 0 200 150" className="block w-full" aria-hidden="true">
+        <rect
+          x="24"
+          y="64"
+          width="152"
+          height="84"
+          rx="4"
+          fill="#eef6ff"
+          stroke="#8fb0d9"
+          strokeWidth="4"
+        />
+        <path
+          d="M8 70 L100 10 L192 70 Z"
+          fill="#5b8def"
+          stroke="#3a62b8"
+          strokeWidth="5"
+          strokeLinejoin="round"
+        />
+        {FRIENDS.map((f, i) => (
+          <path
+            key={f.color}
+            d={`M${32 + i * 40} 72 L${48 + i * 40} 72 L${40 + i * 40} 88 Z`}
+            fill={BUDDY_COLORS[f.color].body}
+            stroke={BUDDY_COLORS[f.color].edge}
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+          />
+        ))}
+        {[44, 156].map((x) => (
+          <circle
+            key={x}
+            cx={x}
+            cy="112"
+            r="14"
+            fill={win}
+            stroke="#3a62b8"
+            strokeWidth="3.5"
+          />
+        ))}
+        <path d="M82 148 V108 Q100 90 118 108 V148 Z" fill="#3a2a2a" />
+        <g
+          className={doorOpen ? "scene-door scene-door--open" : "scene-door"}
+          style={{ transformOrigin: "82px 128px" }}
+        >
+          <path
+            d="M82 148 V108 Q100 90 118 108 V148 Z"
+            fill="#7aa7e6"
+            stroke="#3a62b8"
+            strokeWidth="3"
+          />
+          <circle cx="111" cy="128" r="3" fill="#ffd54a" />
+        </g>
+      </svg>
+      <button
+        type="button"
+        className="scene-house2-knock"
+        aria-label="Knock on the friends' door"
+        onClick={onKnock}
+      />
+    </div>
+  );
+}
+
 // Home's backdrop: sky with the sun or moon in the right place for the time of
 // day, a house, a few friends, and — on top — Buddy, who comes out of the front
 // door (`children` is the lead Buddy; `bubble` its speech bubble).
@@ -231,8 +297,19 @@ export default function HomeScene({
   eatingId = null,
   happyId = null,
   onFeed,
+  // The small friends (see useFriends): where each one is, how to move one
+  // that's picked up, and the knock on their cottage door.
+  friends,
+  onFriendPose,
+  onFriendDropped,
+  onKnockFriends,
 }) {
   const phase = phaseOf(hour);
+  const lawnA = useRef(null);
+  const lawnB = useRef(null);
+  const friendsDoorOpen = FRIENDS.some((f) =>
+    ["coming", "going"].includes(friends[f.color].presence),
+  );
   // The door swings open once the scene has mounted, and shuts when Buddy is in.
   const [doorOpen, setDoorOpen] = useState(false);
   useEffect(() => {
@@ -339,58 +416,84 @@ export default function HomeScene({
         onKnock={onKnock}
       />
 
-      {FRIENDS.map((f) => (
-        <div
-          key={f.color}
-          className={`scene-friend${cheering && !night ? ` scene-friend--${f.move}` : ""}`}
-          style={{ left: f.left, animationDelay: f.delay }}
-        >
-          {said === f.color && (
-            <span className="scene-friend-say" role="status">
-              {f.line}
-            </span>
-          )}
-          <Buddy
-            mood={
-              eatingId === f.color
-                ? "chew"
-                : happyId === f.color
-                  ? "cheer"
-                  : night
-                    ? "sleepy"
-                    : cheering
-                      ? "cheer"
-                      : f.mood
-            }
-            color={f.color}
-            size={f.size}
-            pitch={f.pitch}
-            label={`${f.color} friend`}
-            onTap={() => {
-              // With Buddy indoors, a friend's tap is a knock on its door.
-              if (presence === "in") {
-                onKnock?.();
-                return;
-              }
-              setSaid(f.color);
-              // After the chirp the tap itself makes, the friend "talks" in
-              // its own pitch and speed.
-              setTimeout(
-                () =>
-                  window.__audio?.playBuddyBabble?.(f.line, f.pitch, f.tempo),
-                500,
-              );
+      <FriendsHouse
+        phase={phase}
+        doorOpen={friendsDoorOpen}
+        onKnock={onKnockFriends}
+      />
+      <span ref={lawnA} className="scene-lawn-a" aria-hidden="true" />
+      <span ref={lawnB} className="scene-lawn-b" aria-hidden="true" />
+
+      {FRIENDS.map((f) => {
+        const st = friends[f.color];
+        return (
+          <div
+            key={f.color}
+            className={`scene-friend${cheering && !night && st.presence === "out" ? ` scene-friend--${f.move}` : ""}${st.presence === "in" ? " scene-friend--in" : ""}${st.lifted ? " scene-friend--lifted" : ""}`}
+            style={{
+              "--t": st.t,
+              "--walk": `${st.dur}s`,
+              animationDelay: f.delay,
             }}
-          />
-          {holding && !fed.includes(f.color) && (
-            <FeedTarget
-              id={f.color}
+          >
+            {said === f.color && (
+              <span className="scene-friend-say" role="status">
+                {f.line}
+              </span>
+            )}
+            <Buddy
+              walking={st.walking}
+              facing={st.facing}
+              movable={st.presence === "out"}
+              pose={st.pose}
+              snap={st.snap}
+              onPoseChange={(p) => onFriendPose?.(f.color, p)}
+              onDragEnd={() => {
+                const a = lawnA.current?.getBoundingClientRect().left ?? 0;
+                const b = lawnB.current?.getBoundingClientRect().left ?? 0;
+                onFriendDropped?.(f.color, b - a);
+              }}
+              mood={
+                eatingId === f.color
+                  ? "chew"
+                  : happyId === f.color
+                    ? "cheer"
+                    : night
+                      ? "sleepy"
+                      : cheering
+                        ? "cheer"
+                        : f.mood
+              }
+              color={f.color}
+              size={f.size}
+              pitch={f.pitch}
               label={`${f.color} friend`}
-              onFeed={onFeed}
+              onTap={() => {
+                // With Buddy indoors, a friend's tap is a knock on its door.
+                if (presence === "in") {
+                  onKnock?.();
+                  return;
+                }
+                setSaid(f.color);
+                // After the chirp the tap itself makes, the friend "talks" in
+                // its own pitch and speed.
+                setTimeout(
+                  () =>
+                    window.__audio?.playBuddyBabble?.(f.line, f.pitch, f.tempo),
+                  500,
+                );
+              }}
             />
-          )}
-        </div>
-      ))}
+            {holding && !fed.includes(f.color) && (
+              <FeedTarget
+                id={f.color}
+                label={`${f.color} friend`}
+                onFeed={onFeed}
+              />
+            )}
+          </div>
+        );
+      })}
 
       <div className={`scene-lead scene-lead--${presence}`}>
         <div key={cycle} className={`scene-act scene-act--${action}`}>

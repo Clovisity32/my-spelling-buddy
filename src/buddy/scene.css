@@ -4,9 +4,47 @@
    Home controls sit on; everything stands on its top edge. */
 .scene {
   --ground: calc(9.5rem + env(safe-area-inset-bottom));
-  --house-w: min(46vw, 28rem);
+  --house-w: min(30vw, 22rem);
   --door-x: calc(4% + var(--house-w) / 2 - 55px);
   --lead-x: calc(4% + var(--house-w) + 1rem);
+  /* The friends' cottage on the right, and the lawn between the two houses:
+     a friend at lawn position --t (0..1) stands --t of the way from the left
+     end of the lawn (clear of Buddy) to the cottage door. */
+  --house2-w: min(20vw, 15rem);
+  --lawn-l: calc(4% + var(--house-w) + 1rem + 118px);
+  --door2-x: calc(97% - var(--house2-w) / 2 - 30px);
+}
+.scene-house2 {
+  position: absolute;
+  right: 3%;
+  bottom: calc(var(--ground) - 0.8rem);
+  width: var(--house2-w);
+  z-index: 4;
+}
+.scene-house2-knock {
+  position: absolute;
+  left: 38%;
+  top: 56%;
+  width: 24%;
+  height: 44%;
+  border-radius: 40% 40% 0 0;
+  cursor: pointer;
+}
+/* Zero-size markers at the two ends of the lawn, measured to turn a dragged
+   distance in px back into a lawn position. */
+.scene-lawn-a,
+.scene-lawn-b {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.scene-lawn-a {
+  left: var(--lawn-l);
+}
+.scene-lawn-b {
+  left: var(--door2-x);
 }
 .scene-hill {
   height: 9rem;
@@ -87,6 +125,19 @@
   bottom: calc(var(--ground) - 1.4rem);
   line-height: 0;
   z-index: 5;
+  left: calc(var(--lawn-l) + var(--t, 0) * (var(--door2-x) - var(--lawn-l)));
+  transition:
+    left var(--walk, 0s) linear,
+    opacity 0.3s;
+}
+/* Indoors: out of sight until it walks out of the cottage door. */
+.scene-friend--in {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.scene-friend--lifted {
+  z-index: 25;
 }
 
 /* The door swings open and stays open while Buddy is out. */

@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import HomeScene from "../buddy/HomeScene.jsx";
-import { currentHour, dayNumber, sceneIsStill } from "../buddy/timeOfDay.js";
+import {
+  currentHour,
+  dayNumber,
+  phaseOf,
+  sceneIsStill,
+} from "../buddy/timeOfDay.js";
+import useFriends from "../buddy/useFriends.js";
 import { foodById } from "../buddy/foods.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
@@ -62,6 +68,18 @@ export default function Home({ onNavigate }) {
   const [happy, setHappy] = useState(null);
   const buddyStyle = useBuddyStyle();
   const [hour, setHour] = useState(currentHour);
+  // The small friends wander, go home and come out on their own — except in
+  // the test browser and for anyone who asked for reduced motion.
+  // `?roam=fast` shortens their timers for previewing (with `?scene=live`).
+  const friends = useFriends({
+    roam:
+      !sceneIsStill() &&
+      !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    night: phaseOf(hour) === "night",
+    tray: trayOpen,
+    fed: basket.fed,
+    fast: new URLSearchParams(window.location.search).get("roam") === "fast",
+  });
   const action = useMemo(
     () => DAILY_ACTIONS[dayNumber() % DAILY_ACTIONS.length],
     [],
@@ -259,6 +277,10 @@ export default function Home({ onNavigate }) {
         eatingId={eating}
         happyId={happy}
         onFeed={feed}
+        friends={friends.friends}
+        onFriendPose={friends.setPose}
+        onFriendDropped={friends.dropped}
+        onKnockFriends={friends.wake}
       >
         <Buddy
           mood={buddyMood}
