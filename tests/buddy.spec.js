@@ -643,6 +643,15 @@ test("Buddy can go home, and knocking on the door brings it back out", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(
+    page.getByLabel("Buddy's neighbourhood"),
+  ).toHaveAttribute("data-buddy-presence", "out");
+  // no button sends Buddy home any more: it goes by itself
+  await expect(
+    page.getByRole("button", { name: "Send Buddy home" }),
+  ).toHaveCount(0);
+
+  await page.goto("/?buddy=in");
   await page.evaluate(() => {
     window.__knocks = 0;
     window.__audio.playKnock = () => window.__knocks++;
@@ -650,15 +659,9 @@ test("Buddy can go home, and knocking on the door brings it back out", async ({
   });
   const scene = page.getByLabel("Buddy's neighbourhood");
   const buddy = page.getByRole("button", { name: "Buddy", exact: true });
-  await expect(scene).toHaveAttribute("data-buddy-presence", "out");
-
-  await page.getByRole("button", { name: "Send Buddy home" }).click();
   await expect(scene).toHaveAttribute("data-buddy-presence", "in");
   await expect(buddy).toBeHidden();
   await expect(page.getByText("Knock, knock on my door")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Send Buddy home" }),
-  ).toHaveCount(0);
 
   await page.getByRole("button", { name: "Knock on Buddy's door" }).click();
   await expect(scene).toHaveAttribute("data-buddy-presence", "out");
@@ -669,10 +672,9 @@ test("Buddy can go home, and knocking on the door brings it back out", async ({
 test("with Buddy indoors, tapping a friend knocks on the door", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/?buddy=in");
   await page.evaluate(() => (window.__audio.buddySay = () => {}));
   const scene = page.getByLabel("Buddy's neighbourhood");
-  await page.getByRole("button", { name: "Send Buddy home" }).click();
   await expect(scene).toHaveAttribute("data-buddy-presence", "in");
   await page.getByRole("button", { name: "mint friend" }).click();
   await expect(scene).toHaveAttribute("data-buddy-presence", "out");

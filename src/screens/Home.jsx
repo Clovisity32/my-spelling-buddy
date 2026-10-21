@@ -54,7 +54,11 @@ export default function Home({ onNavigate }) {
   const [daysAway, setDaysAway] = useState(0);
   // Where Buddy is: out on the lawn, going home, in (door shut — knock to
   // call it out) or coming out again.
-  const [presence, setPresence] = useState("out");
+  const [presence, setPresence] = useState(() =>
+    new URLSearchParams(window.location.search).get("buddy") === "in"
+      ? "in"
+      : "out",
+  );
   const [knocking, setKnocking] = useState(false);
   const [cycle, setCycle] = useState(0); // bumps each time Buddy steps out
   const timers = useRef([]);
@@ -71,14 +75,17 @@ export default function Home({ onNavigate }) {
   // The small friends wander, go home and come out on their own — except in
   // the test browser and for anyone who asked for reduced motion.
   // `?roam=fast` shortens their timers for previewing (with `?scene=live`).
+  const roam =
+    !sceneIsStill() &&
+    !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const fastRoam =
+    new URLSearchParams(window.location.search).get("roam") === "fast";
   const friends = useFriends({
-    roam:
-      !sceneIsStill() &&
-      !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    roam,
     night: phaseOf(hour) === "night",
     tray: trayOpen,
     fed: basket.fed,
-    fast: new URLSearchParams(window.location.search).get("roam") === "fast",
+    fast: fastRoam,
   });
   const action = useMemo(
     () => DAILY_ACTIONS[dayNumber() % DAILY_ACTIONS.length],
@@ -92,6 +99,39 @@ export default function Home({ onNavigate }) {
   }, []);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  // Buddy goes home and comes back out by itself: after a while on the lawn
+  // it wanders in, and a little later it steps out again (a knock still brings
+  // it out sooner). It never leaves in the middle of something — snacks,
+  // being carried or moved, or within 15s of being tapped or hugged.
+  const lastTouch = useRef(0);
+  const busy = useRef(false);
+  busy.current =
+    trayOpen ||
+    !!eating ||
+    !!holding ||
+    knocking ||
+    isMoved(pose) ||
+    Date.now() - lastTouch.current < 15000;
+  useEffect(() => {
+    if (!roam || (presence !== "out" && presence !== "in")) return undefined;
+    const secs = (lo, hi) =>
+      (fastRoam ? lo / 6 : lo + Math.random() * (hi - lo)) * 1000;
+    let id;
+    function fire() {
+      if (busy.current) {
+        id = setTimeout(fire, secs(10, 10));
+        return;
+      }
+      if (presence === "in") stepOut("I'm back!");
+      else goHome();
+    }
+    id = setTimeout(
+      fire,
+      presence === "out" ? secs(40, 90) : secs(12, 30),
+    );
+    return () => clearTimeout(id);
+  }, [roam, presence]);
 
   // Buddy's daily door entrance on first load is a walk too (1.5s, as in
   // scene.css). Automated browsers get a still scene, so no walking there.
@@ -168,12 +208,17 @@ export default function Home({ onNavigate }) {
     window.__audio.playKnock?.();
     later(() => {
       setKnocking(false);
-      setWoke(true);
-      setCycle((c) => c + 1);
-      setPresence("coming");
-      window.__audio.buddySay?.("I'm coming!");
-      later(() => setPresence("out"), 1500);
+      stepOut("I'm coming!");
     }, 1000);
+  }
+
+  // Buddy walks out of the front door (after a knock, or on its own).
+  function stepOut(line) {
+    setWoke(true);
+    setCycle((c) => c + 1);
+    setPresence("coming");
+    window.__audio.buddySay?.(line);
+    later(() => setPresence("out"), 1500);
   }
 
   function toggleTray() {
@@ -240,11 +285,13 @@ export default function Home({ onNavigate }) {
   }
 
   function changePose(next) {
+    lastTouch.current = Date.now();
     setPoseState(next);
     setSavedPose(next);
   }
 
   function buddyTapped() {
+    lastTouch.current = Date.now();
     if (sleepy) {
       setWoke(true);
       const line = "I missed you! Let's practise!";
@@ -404,15 +451,6 @@ export default function Home({ onNavigate }) {
             {trayOpen
               ? "Close basket"
               : `Feed the Buddies (${basket.foods.length})`}
-          </button>
-        )}
-        {presence === "out" && (
-          <button
-            type="button"
-            onClick={goHome}
-            className="btn btn-secondary btn-sm"
-          >
-            🏠 Send Buddy home
           </button>
         )}
         {stickersEnabled && (
