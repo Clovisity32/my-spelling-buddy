@@ -5,7 +5,7 @@
 const MODEL = "claude-sonnet-5-5";
 const MAX_SIDE = 1800;
 
-const PROMPT = `This is a photo of a child's school spelling / dictation sheet. Read out the words she must spell and call submit_list.
+const PROMPT = `This is a photo of a child's school spelling / dictation sheet. Read out the words she must spell and report them by calling the submit_list tool. Always call submit_list; do not reply with plain text.
 
 Rules:
 - A box labelled 学拼音 means she writes PINYIN. For each item set writeAs "pinyin", text = the pinyin WITH tone marks (e.g. "shàng kè", "jiǎng gù shi"), speechText = the Chinese characters printed in brackets under it, written without spaces (e.g. "上课").
@@ -90,9 +90,10 @@ export async function readListPhoto(file, apiKey, covers = []) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         tools: [TOOL],
-        tool_choice: { type: "tool", name: TOOL.name },
+        // Some models reject a forced tool call, so ask for it in the prompt.
+        tool_choice: { type: "auto" },
         messages: [
           {
             role: "user",
