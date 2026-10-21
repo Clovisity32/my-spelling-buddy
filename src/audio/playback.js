@@ -4,7 +4,8 @@
 // a DynamicsCompressorNode after the gain squashes the peaks first, so
 // the whole boosted signal stays loud without distorting.
 import { ensureAudioContextRunning } from "./context.js";
-import { speakWordEntry } from "./tts.js";
+import { speakWord, speakWordEntry } from "./tts.js";
+import { WRITE_AS, writeAsOf } from "../writeAs.js";
 
 function boostChain(ctx, gain) {
   const gainNode = ctx.createGain();
@@ -71,6 +72,18 @@ export async function playRecordedAudio(blob, gain = 3, rate = 1) {
       el.play().catch(resolve);
     });
   }
+}
+
+// Before a Chinese word is played: "写汉字" ("write the characters") or
+// "写拼音" ("write the pinyin"), in Mandarin, so she knows which form to write
+// — the word itself sounds the same either way. Resolves at once for an
+// English word, which needs no cue. Plays whether the word then comes from the
+// app's voice or a recording.
+export function playWriteCue(word) {
+  const cue = WRITE_AS[writeAsOf(word)].cue;
+  if (!cue) return Promise.resolve();
+  const voice = word.useTts && word.ttsLang === "zh" ? word.ttsVoiceURI : null;
+  return speakWord(cue, "zh", voice, 0.9);
 }
 
 // The single "how does this word sound" decision, used everywhere a word

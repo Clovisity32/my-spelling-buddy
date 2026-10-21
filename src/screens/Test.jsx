@@ -5,6 +5,7 @@ import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
+import { WRITE_AS, writeAsOf } from "../writeAs.js";
 
 // How long the board can sit untouched before Buddy gently waves to say
 // "take your time — I'm here".
@@ -100,6 +101,7 @@ export default function Test({
 
   const word = words[index];
   const isLast = index + 1 >= words.length;
+  const writeAs = writeAsOf(word);
 
   // Keeps a "playing" flag on for exactly as long as the sound lasts (the
   // playback functions return a Promise that settles when it ends), with a
@@ -117,7 +119,14 @@ export default function Test({
     // A tap with no visible response reads as broken to a child who can't
     // diagnose "volume's down" or "autoplay got blocked" — the pulse (and
     // Buddy perking up to listen) is proof the tap registered.
-    whilePlaying(setIsPlayingAudio, window.__audio.playWordEntry(word));
+    whilePlaying(setIsPlayingAudio, playWithCue());
+  }
+
+  // A Chinese word is introduced by "写汉字" / "写拼音" (see playWriteCue), so
+  // she knows whether to write the characters or the pinyin.
+  async function playWithCue() {
+    await window.__audio.playWriteCue?.(word);
+    return window.__audio.playWordEntry(word);
   }
 
   // The hint: same word, slower and broken up, for sounding it out.
@@ -279,6 +288,15 @@ export default function Test({
           </div>
         </div>
       </div>
+
+      {/* What to write. Every word has one, in a fixed-height row, so the
+          whiteboard below is the same size for all of them. */}
+      <p
+        data-write-as={writeAs}
+        className={`mx-auto mb-2 flex h-10 shrink-0 items-center justify-center rounded-full px-5 text-lg font-bold short:h-8 short:text-sm ${WRITE_AS[writeAs].tone}`}
+      >
+        {WRITE_AS[writeAs].badge}
+      </p>
 
       <div
         className="min-h-0 flex-1"

@@ -85,6 +85,8 @@ export async function deleteList(listId) {
 // whose text is "nǐ hǎo" needs speechText "你好" to be spoken correctly.
 // null/empty means "just say text", which is right for Chinese characters
 // and English words alike.
+// writeAs ("hanzi" | "pinyin" | "english") is which form she is asked to write;
+// null leaves it to be worked out from the word (see writeAs.js).
 export async function addWord(
   listId,
   {
@@ -95,6 +97,7 @@ export async function addWord(
     ttsLang = "zh",
     ttsVoiceURI = null,
     speechText = null,
+    writeAs = null,
   },
 ) {
   const word = {
@@ -107,6 +110,7 @@ export async function addWord(
     ttsLang,
     ttsVoiceURI,
     speechText: speechText?.trim() || null,
+    writeAs,
     createdAt: Date.now(),
   };
   await idb.put("words", word);

@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { toneNumbersToMarks } from "../pinyin.js";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import {
+  WRITE_AS,
+  WRITE_AS_KINDS,
+  inferWriteAs,
+  writeAsOf,
+} from "../writeAs.js";
 
 const PINYIN_HINT_RE = /[a-zü]+[1-5]/i;
 // Any CJK ideograph. A word already written in characters needs no separate
@@ -15,6 +21,9 @@ export default function ListEditor({ listId, onNavigate }) {
   const [childName, setChildName] = useState("Chloe");
   const [text, setText] = useState("");
   const [speechText, setSpeechText] = useState("");
+  // What she writes for the word being added: null leaves it to be worked out
+  // from what was typed, until a parent picks one.
+  const [writeAsPick, setWriteAsPick] = useState(null);
   const [recordState, setRecordState] = useState("idle"); // idle | starting | recording
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [pendingAudio, setPendingAudio] = useState(null); // {blob,mime} or {useTts:true,...}
@@ -129,9 +138,11 @@ export default function ListEditor({ listId, onNavigate }) {
       ttsLang: pendingAudio.useTts ? pendingAudio.ttsLang : "zh",
       ttsVoiceURI: pendingAudio.useTts ? pendingAudio.ttsVoiceURI : null,
       speechText: speechText.trim() || null,
+      writeAs,
     });
     setText("");
     setSpeechText("");
+    setWriteAsPick(null);
     setPendingAudio(null);
     refresh();
     textInputRef.current?.focus();
@@ -206,6 +217,7 @@ export default function ListEditor({ listId, onNavigate }) {
   if (!list) return null;
 
   const looksLikePinyin = PINYIN_HINT_RE.test(text);
+  const writeAs = writeAsPick || inferWriteAs({ text, speechText });
   // What the app's voice will actually say, previews included.
   const spokenText = speechText.trim() || text.trim();
   // Offered only for Latin-script words: a word already typed in characters
@@ -272,6 +284,30 @@ export default function ListEditor({ listId, onNavigate }) {
               )}
             </div>
           </div>
+
+          {/* Which form she is asked to write: a pinyin word sounds the same as
+              its characters, so she has to be told. */}
+          {text.trim() && (
+            <div className="-mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-slate-600">
+                {childName} writes:
+              </span>
+              <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                {WRITE_AS_KINDS.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setWriteAsPick(k)}
+                    aria-label={`${childName} writes ${WRITE_AS[k].label}`}
+                    aria-pressed={writeAs === k}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition active:scale-95 ${writeAs === k ? "bg-white shadow" : "text-slate-500"}`}
+                  >
+                    {WRITE_AS[k].short}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Step 1b: what the app should say, when that differs from the
               answer. Only Latin-script words get this — see canAddCharacters. */}
@@ -438,6 +474,23 @@ export default function ListEditor({ listId, onNavigate }) {
                 </span>
               </span>
               <div className="flex items-center gap-2">
+                <select
+                  value={writeAsOf(word)}
+                  onChange={async (e) => {
+                    await window.__storage.updateWord(word.id, {
+                      writeAs: e.target.value,
+                    });
+                    refresh();
+                  }}
+                  aria-label={`What ${childName} writes for ${word.text}`}
+                  className={`rounded-full px-2 py-1 text-xs font-bold ${WRITE_AS[writeAsOf(word)].tone}`}
+                >
+                  {WRITE_AS_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {WRITE_AS[k].label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   onClick={() => playWord(word)}

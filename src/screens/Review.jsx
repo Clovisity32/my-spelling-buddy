@@ -4,6 +4,7 @@ import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import Buddy from "../buddy/Buddy.jsx";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
+import { WRITE_AS, writeAsOf } from "../writeAs.js";
 
 export default function Review({ sessionId, focusWordId, onNavigate }) {
   const [session, setSession] = useState(null);
@@ -137,6 +138,11 @@ export default function Review({ sessionId, focusWordId, onNavigate }) {
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2 text-2xl font-semibold text-slate-800">
                   <span className="truncate">{word.text}</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${WRITE_AS[writeAsOf(word)].tone}`}
+                  >
+                    {WRITE_AS[writeAsOf(word)].label}
+                  </span>
                   {state === "gotIt" && (
                     <span
                       role="img"
