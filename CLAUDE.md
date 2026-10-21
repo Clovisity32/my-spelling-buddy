@@ -29,6 +29,10 @@ app is allowed to import.
 - **Buddy's voice** — `buddySay()` never uses speech synthesis: even at pitch 2 the browser voice sounds like a grown man. Buddy "talks" in a synthesized chirp babble (`playBuddyBabble(text, pitch, tempo)` in `buddy-voice.js`) and the words show in the speech bubble. Each Home friend has its own pitch, tempo and line.
 - **Canvas** (`src/canvas/*`) — `Whiteboard.jsx` is the live drawing surface (pointer events, palm rejection, undo); `strokes.js` holds stroke data structures and redraw logic shared with `StrokeReplay.jsx`, a read-only thumbnail used in Review.
 - **Home scene** (`src/buddy/HomeScene.jsx`) — sky, house and friends; the lead Buddy is passed in as `children`. The sky comes from `timeOfDay.js`: `phaseOf` gives night 20–5, dawn 5–8, day 8–17, dusk 17–20, while the sun/moon switch is a separate boundary at 6/18 (so a dusk sky at 18:00 already shows the moon). Buddy's door entrance and daily action animate wrapper divs (`.scene-lead`, `.scene-act`), never the `<button>`, because the button's own transform is the drag/rotate pose. 3D spins live on the SVG root (`.buddy-3d`, with `perspective` on `.buddy`).
+- **Friends' cottage & roaming** (`src/buddy/useFriends.js`) — the four small friends live in a module-level store (like `pose.js`): they wander the lawn, go in/out of their own house, walk home at night, and can be dragged. Buddy (`Home.jsx`) leaves and returns on timers (40–90s out, 12–30s in) unless busy; there is no manual "go home" button.
+- **Rewards** are all derived from `getTotalCompletedSessionCount()`, never stored: stickers (`stickers.js`, ladder to 500 then a ⭐ every 100), garden (`garden.js`), friend wardrobes (`unlocks.js`). Friend outfits live in the `settings` row `friendStyles`. Baskets are 5 snacks, every 10th practice adds a golden treat, and a fed Buddy can share a second snack with a hungry one.
+- **Write-as** (`src/writeAs.js`) — each word is written as `hanzi`, `pinyin` or `english` (`word.writeAs`, else inferred from the content). Test.jsx shows a badge and `playWriteCue` speaks 写汉字/写拼音 before the word.
+- **Photo import** (`src/screens/PhotoImport.jsx`, `src/import/`) — photo → parent drags black "cover" boxes over her name → `readListPhoto` sends it to the Anthropic API from the browser with the parent's key (`getAiKey`/`setAiKey`, `settings` row `ai`, **excluded from `exportData`/`importData`**) → `normalizeWords` → editable review → `createList`/`addWord`. Tests stub `window.__import.readListPhoto`; never let a test reach the real API.
 - **Test seam**: `src/main.jsx` attaches the whole storage/audio/canvas API onto `window.__storage` / `window.__audio` / `window.__canvas`. Screens call through these rather than importing directly — this is also exactly how the Playwright suite drives and inspects the app (`page.evaluate(() => window.__storage...)`), so don't remove anything from these exports without checking `tests/`.
 
 ## Testing
@@ -38,7 +42,7 @@ Playwright, `tests/*.spec.js`, run against the built app (not dev server) per `p
 ### Test-only scene behaviour
 
 - Automated browsers (`navigator.webdriver`) get a still scene (no door entrance, daily action or friends' moves) and the "dance" celebration, so tests can aim at and click on moving things.
-- URL switches for previewing and testing: `?hour=22` (fake the clock), `?scene=live` (turn animations back on), `?party=sing|run|queue|dance`.
+- URL switches for previewing and testing: `?hour=22` (fake the clock), `?scene=live` (turn animations back on), `?party=sing|run|queue|dance`, `?buddy=in` (start with Buddy indoors, since there is no "Send Buddy home" button any more), `?roam=fast` (wander/go-home timers ~6× shorter; use with `?scene=live`).
 - Don't auto-speak on Home mount: browsers block sound before a tap, and some tests stub `buddySay` after load.
 
 ## Deploy
@@ -47,8 +51,11 @@ Pushing to `master` deploys to GitHub Pages via `.github/workflows/deploy-pages.
 
 ## Changelog
 
-| Date    | What changed                                                                                                                                                                                                              |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10 | Pikachu-style chirp voice, time-of-day Home scene with daily door entrance, 3D spins, varied celebration parties, per-friend voices and moves; GitHub Actions bumped to current majors                                    |
-| 2026-10 | Home scene is now full-bleed (the page itself, controls float on it); Buddy can go home ("Send Buddy home") and a knock on the door (`playKnock`) brings it back out — `presence` out/going/in/coming lives in `Home.jsx` |
+| Date    | What changed                                                                                                                                                                                                                                                                                                                            |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10 | Pikachu-style chirp voice, time-of-day Home scene with daily door entrance, 3D spins, varied celebration parties, per-friend voices and moves; GitHub Actions bumped to current majors                                                                                                                                                  |
+| 2026-10 | Home scene is now full-bleed (the page itself, controls float on it); Buddy can go home ("Send Buddy home") and a knock on the door (`playKnock`) brings it back out — `presence` out/going/in/coming lives in `Home.jsx`                                                                                                               |
 | 2026-10 | Food basket: finishing a whole list (Celebration) calls `claimBasket(sessionId)` — once per session — for 4 snacks; Home's "Feed the Buddies" tray lets her drag or tap a snack onto a Buddy (one snack each per basket); `chew` mood + `playMunch`. State lives in the `settings` row `basket` (`getBasket`/`claimBasket`/`feedBuddy`) |
+| 2026-10 | Walking legs for all Buddies, a friends' cottage with wandering/dragging friends, Buddy goes home and comes out on its own (button removed), chewing with bites and crumbs, 5-snack baskets + sharing + golden treat |
+| 2026-10 | Rewards past the top sticker: sticker ladder to 500 + Superstars, garden decorations, friend outfits; "Write the characters / pinyin / English" badge and spoken cue per word |
+| 2026-10 | New list from a photo (Claude vision, key kept on-device and out of backups, name/class can be covered before sending) |
