@@ -75,6 +75,15 @@ export default function Home({ onNavigate }) {
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
+  // Buddy's daily door entrance on first load is a walk too (1.5s, as in
+  // scene.css). Automated browsers get a still scene, so no walking there.
+  const [arriving, setArriving] = useState(!sceneIsStill());
+  useEffect(() => {
+    if (!arriving) return undefined;
+    const id = setTimeout(() => setArriving(false), 1500);
+    return () => clearTimeout(id);
+  }, []);
+
   useEffect(() => {
     (async () => {
       const lists = await window.__storage.getLists(); // newest first
@@ -256,6 +265,8 @@ export default function Home({ onNavigate }) {
           color={buddyStyle.color}
           accessory={buddyStyle.accessory}
           size={110}
+          walking={presence === "coming" || presence === "going" || arriving}
+          facing={presence === "going" ? "left" : "right"}
           label="Buddy"
           onTap={buddyTapped}
           movable

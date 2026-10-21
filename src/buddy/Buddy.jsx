@@ -114,6 +114,11 @@ export default function Buddy({
   size = 160,
   lookAt = null,
   pitch = 1,
+  // Stepping along: feet take turns, the body waddles and the arms swing.
+  // `facing` "left" mirrors the figure (the SVG, never the button, whose own
+  // transform is the drag pose).
+  walking = false,
+  facing = "right",
   onTap,
   label = "Buddy",
   className = "",
@@ -352,6 +357,7 @@ export default function Buddy({
     "buddy",
     `buddy--${mood}`,
     reaction ? `buddy--r-${reaction}` : "",
+    walking ? "buddy--walk" : "",
     pressed ? "buddy--pressed" : "",
     boing ? "buddy--boing" : "",
     className,
@@ -399,7 +405,7 @@ export default function Buddy({
       }}
     >
       <svg
-        className="buddy-3d"
+        className={`buddy-3d${facing === "left" ? " buddy-3d--left" : ""}`}
         viewBox="0 0 200 300"
         width="100%"
         height="100%"
@@ -423,40 +429,44 @@ export default function Buddy({
 
         {/* feet with toe beans */}
         <g>
-          <ellipse
-            cx="62"
-            cy="286"
-            rx="30"
-            ry="14"
-            fill={palette.body}
-            stroke={palette.edge}
-            strokeWidth="3"
-          />
-          <ellipse
-            cx="138"
-            cy="286"
-            rx="30"
-            ry="14"
-            fill={palette.body}
-            stroke={palette.edge}
-            strokeWidth="3"
-          />
-          {[
-            [52, 282],
-            [62, 278],
-            [72, 282],
-          ].map(([cx, cy], i) => (
-            <circle key={`l${i}`} cx={cx} cy={cy} r="4" fill={palette.ear} />
-          ))}
-          {[
-            [128, 282],
-            [138, 278],
-            [148, 282],
-          ].map(([cx, cy], i) => (
-            <circle key={`r${i}`} cx={cx} cy={cy} r="4" fill={palette.ear} />
-          ))}
-          <ellipse cx="62" cy="291" rx="9" ry="5" fill={palette.ear} />
-          <ellipse cx="138" cy="291" rx="9" ry="5" fill={palette.ear} />
+          <g className="buddy-foot-l">
+            <ellipse
+              cx="62"
+              cy="286"
+              rx="30"
+              ry="14"
+              fill={palette.body}
+              stroke={palette.edge}
+              strokeWidth="3"
+            />
+            {[
+              [52, 282],
+              [62, 278],
+              [72, 282],
+            ].map(([cx, cy], i) => (
+              <circle key={`l${i}`} cx={cx} cy={cy} r="4" fill={palette.ear} />
+            ))}
+            <ellipse cx="62" cy="291" rx="9" ry="5" fill={palette.ear} />
+          </g>
+          <g className="buddy-foot-r">
+            <ellipse
+              cx="138"
+              cy="286"
+              rx="30"
+              ry="14"
+              fill={palette.body}
+              stroke={palette.edge}
+              strokeWidth="3"
+            />
+            {[
+              [128, 282],
+              [138, 278],
+              [148, 282],
+            ].map(([cx, cy], i) => (
+              <circle key={`r${i}`} cx={cx} cy={cy} r="4" fill={palette.ear} />
+            ))}
+            <ellipse cx="138" cy="291" rx="9" ry="5" fill={palette.ear} />
+          </g>
         </g>
 
         <g className="buddy-squish">

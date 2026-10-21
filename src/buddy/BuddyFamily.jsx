@@ -99,6 +99,7 @@ export default function BuddyFamily({
               }
               accessory={i === LEAD ? leadAccessory : "none"}
               size={m.size * 0.62}
+              walking={party === "run"}
               pitch={0.8 + i * 0.09}
               label={`${m.color} buddy`}
               onTap={() => window.__audio?.playBuddyNote?.(i)}

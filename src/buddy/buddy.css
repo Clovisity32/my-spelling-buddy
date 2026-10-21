@@ -155,6 +155,58 @@
   animation: buddy-dance 0.9s ease-in-out infinite;
 }
 
+/* ---- walking: feet take turns lifting, the body waddles, arms swing ---- */
+.buddy-3d--left {
+  transform: scaleX(-1);
+}
+.buddy-foot-l,
+.buddy-foot-r {
+  transform-origin: 50% 50%;
+}
+.buddy--walk .buddy-foot-l {
+  animation: buddy-step 0.5s ease-in-out infinite;
+}
+.buddy--walk .buddy-foot-r {
+  animation: buddy-step 0.5s ease-in-out infinite -0.25s;
+}
+.buddy--walk .buddy-bob {
+  animation: buddy-waddle 0.5s ease-in-out infinite;
+}
+.buddy--walk .buddy-arm-l {
+  animation: buddy-swing 0.5s ease-in-out infinite;
+}
+.buddy--walk .buddy-arm-r {
+  animation: buddy-swing 0.5s ease-in-out infinite -0.25s;
+}
+@keyframes buddy-step {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-9px) rotate(-10deg);
+  }
+}
+@keyframes buddy-waddle {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(2px);
+  }
+  50% {
+    transform: rotate(4deg) translateY(2px);
+  }
+}
+@keyframes buddy-swing {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(14deg);
+  }
+}
+
 /* ---- tap reactions ---- */
 .buddy--r-jump .buddy-bob {
   animation: buddy-jump 0.5s ease-out 1;
