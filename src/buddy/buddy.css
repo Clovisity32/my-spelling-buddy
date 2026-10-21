@@ -155,6 +155,162 @@
   animation: buddy-dance 0.9s ease-in-out infinite;
 }
 
+/* ---- eating: cheeks puff with each chew, a hungry Buddy hopes and wobbles ---- */
+.buddy--chew .buddy-cheek {
+  transform-origin: 50% 50%;
+  animation: buddy-puff 0.32s ease-in-out infinite;
+}
+@keyframes buddy-puff {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3, 1.2);
+  }
+}
+.buddy--hungry .buddy-bob {
+  animation: buddy-wobble 0.9s ease-in-out infinite;
+}
+@keyframes buddy-wobble {
+  0%,
+  100% {
+    transform: rotate(-3deg) scale(1, 1);
+  }
+  25% {
+    transform: rotate(0) scale(1.03, 0.97);
+  }
+  50% {
+    transform: rotate(3deg) scale(1, 1);
+  }
+  75% {
+    transform: rotate(0) scale(1.03, 0.97);
+  }
+}
+
+/* The snack comes up to the mouth (the middle of the Buddy), is bitten three
+   times — each bite is a notch masked out of it — then gone. Crumbs fly at each
+   bite. The mask is stepped, not eased: a bite appears at once. */
+.eat-snack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: 5;
+  pointer-events: none;
+  animation: eat-move 3s ease-in-out both;
+}
+.eat-snack-food {
+  /* Each bite is a round notch (sized in em, so it scales with the snack). */
+  --bite-1: radial-gradient(circle at 90% 22%, transparent 0.3em, #000 0.32em);
+  --bite-2: radial-gradient(circle at 6% 32%, transparent 0.32em, #000 0.34em);
+  --bite-3: radial-gradient(circle at 50% 98%, transparent 0.42em, #000 0.44em);
+  position: absolute;
+  left: -0.6em;
+  top: -0.3em;
+  font-size: 1.9rem;
+  line-height: 1.5rem;
+  animation: eat-bites 3s step-end both;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.eat-snack--half {
+  --eat-start: 0.75;
+}
+.eat-snack--half .eat-snack-food {
+  animation-name: eat-bites-half;
+}
+.eat-crumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(90, 50, 30, 0.35);
+  opacity: 0;
+  animation: eat-crumb 0.7s ease-out both;
+}
+@keyframes eat-move {
+  0% {
+    transform: translateY(-34px) scale(0.3);
+    opacity: 0;
+  }
+  14% {
+    transform: translateY(0) scale(var(--eat-start, 1));
+    opacity: 1;
+  }
+  30%,
+  45% {
+    transform: translateY(0) scale(calc(var(--eat-start, 1) * 0.95))
+      rotate(-8deg);
+  }
+  50%,
+  62% {
+    transform: translateY(0) scale(calc(var(--eat-start, 1) * 0.85))
+      rotate(8deg);
+  }
+  70%,
+  82% {
+    transform: translateY(0) scale(calc(var(--eat-start, 1) * 0.7))
+      rotate(-6deg);
+  }
+  100% {
+    transform: translateY(0) scale(0.1);
+    opacity: 0;
+  }
+}
+@keyframes eat-bites {
+  0%,
+  22% {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  23%,
+  44% {
+    -webkit-mask-image: var(--bite-1);
+    mask-image: var(--bite-1);
+  }
+  45%,
+  66% {
+    -webkit-mask-image: var(--bite-1), var(--bite-2);
+    mask-image: var(--bite-1), var(--bite-2);
+  }
+  67%,
+  100% {
+    -webkit-mask-image: var(--bite-1), var(--bite-2), var(--bite-3);
+    mask-image: var(--bite-1), var(--bite-2), var(--bite-3);
+  }
+}
+/* A shared snack arrives with a bite already gone. */
+@keyframes eat-bites-half {
+  0%,
+  44% {
+    -webkit-mask-image: var(--bite-1);
+    mask-image: var(--bite-1);
+  }
+  45%,
+  100% {
+    -webkit-mask-image: var(--bite-1), var(--bite-2);
+    mask-image: var(--bite-1), var(--bite-2);
+  }
+}
+@keyframes eat-crumb {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(calc(var(--dx) * 0.6), -12px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+
 /* ---- walking: feet take turns lifting, the body waddles, arms swing ---- */
 .buddy-3d--left {
   transform: scaleX(-1);
@@ -412,6 +568,9 @@
 /* Reduced motion: stop the movement, keep the expression changes (open
    mouth, sleepy eyes, hearts shown statically). */
 @media (prefers-reduced-motion: reduce) {
+  .eat-crumb {
+    display: none;
+  }
   .buddy *,
   .buddy-float {
     animation: none !important;

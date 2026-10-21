@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import "./buddy.css";
 import { MIN_SCALE, MAX_SCALE } from "./pose.js";
+import EatingSnack from "./EatingSnack.jsx";
 
 // Pastel family, one per member of Chloe's drawing.
 export const BUDDY_COLORS = {
@@ -104,7 +105,9 @@ function Accessory({ kind }) {
   }
 }
 
-// mood: idle | wave | listen | slow | cheer | love | dance | sleepy | chew
+// mood: idle | wave | listen | slow | cheer | love | dance | sleepy | chew |
+// hungry (hopeful sparkly eyes — a snack is coming). `snack` is the food being
+// eaten right now (see EatingSnack); `shared` makes it a half, shared one.
 // lookAt: {x, y} in -1..1 — pupils follow it, in any mood, so Buddy can
 // watch the pencil while otherwise idle.
 export default function Buddy({
@@ -119,6 +122,8 @@ export default function Buddy({
   // transform is the drag pose).
   walking = false,
   facing = "right",
+  snack = null,
+  shared = false,
   onTap,
   label = "Buddy",
   className = "",
@@ -397,6 +402,7 @@ export default function Buddy({
         background: "none",
         border: 0,
         padding: 0,
+        position: "relative", // the snack being eaten is placed over the mouth
         ...(movable && {
           // A transform, so moving Buddy never reflows the screen. Lean tips
           // it into the direction of travel while it's being carried.
@@ -566,8 +572,16 @@ export default function Buddy({
                       stroke="#555"
                       strokeWidth="2.5"
                     />
-                    <circle cx={cx + px} cy={122 + py} r="8" fill="#3b3b4f" />
+                    <circle
+                      cx={cx + px}
+                      cy={122 + py}
+                      r={mood === "hungry" ? 10 : 8}
+                      fill="#3b3b4f"
+                    />
                     <circle cx={cx + px + 3} cy={118 + py} r="3" fill="#fff" />
+                    {mood === "hungry" && (
+                      <circle cx={cx + px - 3} cy={125 + py} r="2" fill="#fff" />
+                    )}
                   </g>
                 ))}
               </g>
@@ -586,6 +600,7 @@ export default function Buddy({
 
             {/* cheeks */}
             <ellipse
+              className="buddy-cheek"
               cx="52"
               cy="148"
               rx="11"
@@ -594,6 +609,7 @@ export default function Buddy({
               opacity={hugging || mood === "love" ? 0.95 : 0.6}
             />
             <ellipse
+              className="buddy-cheek"
               cx="148"
               cy="148"
               rx="11"
@@ -625,6 +641,16 @@ export default function Buddy({
                 stroke="#555"
                 strokeWidth="2.5"
                 strokeLinejoin="round"
+              />
+            ) : mood === "hungry" ? (
+              <ellipse
+                cx="100"
+                cy="158"
+                rx="9"
+                ry="7"
+                fill="#7a2a3a"
+                stroke="#555"
+                strokeWidth="2.5"
               />
             ) : (
               <path
@@ -695,6 +721,7 @@ export default function Buddy({
           </g>
         </g>
       </svg>
+      {snack && <EatingSnack key={snack.id} food={snack} half={shared} />}
     </button>
   );
 }

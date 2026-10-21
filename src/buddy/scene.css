@@ -574,6 +574,35 @@
       0 0 18px 8px rgba(255, 213, 74, 0.8);
   }
 }
+/* The golden treat: sparkles drift up over the whole scene. */
+.scene-sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  overflow: hidden;
+  pointer-events: none;
+}
+.scene-sparkles span {
+  position: absolute;
+  bottom: var(--ground);
+  font-size: 1.6rem;
+  line-height: 1;
+  opacity: 0;
+  animation: scene-sparkle 2.2s ease-out infinite;
+}
+@keyframes scene-sparkle {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14rem) scale(1.2) rotate(40deg);
+  }
+}
 .food-ghost {
   position: fixed;
   z-index: 60;
@@ -585,5 +614,9 @@
 @media (prefers-reduced-motion: reduce) {
   .feed-target {
     animation: none;
+  }
+  .scene-sparkles span {
+    animation: none;
+    opacity: 0.8;
   }
 }

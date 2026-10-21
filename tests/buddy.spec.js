@@ -643,9 +643,10 @@ test("Buddy can go home, and knocking on the door brings it back out", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(
-    page.getByLabel("Buddy's neighbourhood"),
-  ).toHaveAttribute("data-buddy-presence", "out");
+  await expect(page.getByLabel("Buddy's neighbourhood")).toHaveAttribute(
+    "data-buddy-presence",
+    "out",
+  );
   // no button sends Buddy home any more: it goes by itself
   await expect(
     page.getByRole("button", { name: "Send Buddy home" }),
@@ -692,7 +693,7 @@ test("finishing a list earns a food basket the Buddies can eat, one snack each",
     await window.__storage.claimBasket("basket-test-1"); // same session: no second basket
   });
   await page.reload();
-  const feedBtn = page.getByRole("button", { name: /Feed the Buddies \(4\)/ });
+  const feedBtn = page.getByRole("button", { name: /Feed the Buddies \(5\)/ });
   await expect(feedBtn).toBeVisible();
   await feedBtn.click();
 
@@ -703,19 +704,24 @@ test("finishing a list earns a food basket the Buddies can eat, one snack each",
     .click();
   await page.getByRole("button", { name: "Feed mint friend" }).click();
   await expect(mint).toHaveAttribute("data-buddy-mood", "chew");
+  // the snack is shown at its mouth, and crumbs fly off it
+  await expect(mint.locator("[data-eating-food]")).toHaveCount(1);
+  await expect(mint.locator(".eat-crumb")).toHaveCount(6);
   await expect(mint).toHaveAttribute("data-buddy-mood", "cheer", {
-    timeout: 4000,
+    timeout: 5000,
   });
-  await expect(page.getByRole("button", { name: /^Pick up/ })).toHaveCount(3);
+  await expect(mint.locator("[data-eating-food]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Pick up/ })).toHaveCount(4);
 
-  // mint has had its snack: it is no longer a feeding target
+  // while a Buddy is hungry, the others are still feeding targets (a second
+  // snack to a fed Buddy is shared with a hungry one)
   await page
     .getByRole("button", { name: /^Pick up/ })
     .first()
     .click();
   await expect(
     page.getByRole("button", { name: "Feed mint friend" }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Feed rose friend" }),
   ).toBeVisible();
@@ -763,7 +769,7 @@ test("finishing a whole list announces a basket of food on Celebration", async (
   await expect(page.getByText("You earned a basket of food")).toBeVisible();
   await page.getByRole("button", { name: "Go and feed the Buddies" }).click();
   await expect(
-    page.getByRole("button", { name: /Feed the Buddies \(4\)/ }),
+    page.getByRole("button", { name: /Feed the Buddies \(5\)/ }),
   ).toBeVisible();
 });
 
@@ -771,7 +777,9 @@ test("the four small friends have their own cottage, and its door can be knocked
   page,
 }) => {
   await page.goto("/");
-  const knock = page.getByRole("button", { name: "Knock on the friends' door" });
+  const knock = page.getByRole("button", {
+    name: "Knock on the friends' door",
+  });
   await expect(knock).toBeVisible();
   // everyone is out on the lawn between the two houses
   const house = await page.locator(".scene-house").boundingBox();
@@ -804,4 +812,132 @@ test("a small friend can be picked up and put down somewhere else on the lawn", 
     .toBe(Math.round(before.y));
   const after = await mint.boundingBox();
   expect(after.x).toBeGreaterThan(before.x + 50);
+});
+
+test("a basket holds five different snacks, one for each Buddy", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const foods = await page.evaluate(async () => {
+    await window.__storage.claimBasket("five-test");
+    return (await window.__storage.getBasket()).foods;
+  });
+  expect(foods).toHaveLength(5);
+  expect(new Set(foods).size).toBe(5);
+});
+
+test("a fed Buddy can take another snack and shares it with a hungry one", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    await window.__storage.claimBasket("share-test");
+    const { foods } = await window.__storage.getBasket();
+    const first = await window.__storage.feedBuddy("mint", foods[0]);
+    const second = await window.__storage.feedBuddy("mint", foods[1]);
+    return { first, second };
+  });
+  expect(result.first.sharedWith).toBeNull();
+  expect(result.second.sharedWith).toBe("lead");
+  expect(result.second.fed).toEqual(["mint", "lead"]);
+  expect(result.second.foods).toHaveLength(3);
+});
+
+test("when every Buddy has eaten and snacks are left, a new round starts", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const after = await page.evaluate(async () => {
+    await window.__storage.claimBasket("round-test");
+    await window.__storage.claimBasket("round-test-2"); // 10 snacks
+    let last;
+    for (const id of ["lead", "lavender", "mint", "butter", "rose"]) {
+      const { foods } = await window.__storage.getBasket();
+      last = await window.__storage.feedBuddy(id, foods[0]);
+    }
+    return last;
+  });
+  expect(after.foods).toHaveLength(5);
+  expect(after.fed).toEqual([]);
+});
+
+test("a Buddy that has already eaten shares a second snack: the hungry one then eats half", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    window.__audio.buddySay = () => {};
+    window.__audio.playMunch = () => 0;
+    window.__audio.playBuddyBabble = () => {};
+    await window.__storage.claimBasket("share-ui");
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /Feed the Buddies/ }).click();
+  const mint = page.getByRole("button", { name: "mint friend", exact: true });
+  const feedMint = async () => {
+    await page
+      .getByRole("button", { name: /^Pick up/ })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Feed mint friend" }).click();
+  };
+  await feedMint();
+  await expect(mint).toHaveAttribute("data-buddy-mood", "cheer", {
+    timeout: 5000,
+  });
+  await feedMint();
+  await expect(page.getByText("Sharing is caring!")).toBeVisible({
+    timeout: 6000,
+  });
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "chew", { timeout: 4000 });
+});
+
+test("with the tray open, Buddies who haven't eaten look hopeful", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await window.__storage.claimBasket("hungry-test");
+  });
+  await page.reload();
+  const rose = page.getByRole("button", { name: "rose friend", exact: true });
+  await expect(rose).not.toHaveAttribute("data-buddy-mood", "hungry");
+  await page.getByRole("button", { name: /Feed the Buddies/ }).click();
+  await expect(rose).toHaveAttribute("data-buddy-mood", "hungry");
+  await expect(
+    page.getByRole("button", { name: "Buddy", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "hungry");
+});
+
+test("every 10th practice brings a golden treat that makes everyone dance", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const golden = await page.evaluate(async () => {
+    window.__audio.buddySay = () => {};
+    window.__audio.playMunch = () => 0;
+    const list = await window.__storage.createList("Golden list");
+    const done = async (n) => {
+      for (let i = 0; i < n; i++) {
+        const s = await window.__storage.startSession(list.id);
+        await window.__storage.completeSession(s.id);
+      }
+    };
+    await done(9);
+    const nine = await window.__storage.claimBasket("golden-9");
+    await done(1);
+    const ten = await window.__storage.claimBasket("golden-10");
+    return { nine: nine.golden, ten: ten.golden };
+  });
+  expect(golden).toEqual({ nine: false, ten: true });
+  await page.reload();
+  await page.getByRole("button", { name: /Feed the Buddies \(11\)/ }).click();
+  await page.getByRole("button", { name: /^Pick up golden/ }).click();
+  await page.getByRole("button", { name: "Feed mint friend" }).click();
+  await expect(page.locator(".scene-sparkles")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "rose friend", exact: true }),
+  ).toHaveAttribute("data-buddy-mood", "cheer");
 });

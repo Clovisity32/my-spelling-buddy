@@ -9,7 +9,7 @@ import {
   sceneIsStill,
 } from "../buddy/timeOfDay.js";
 import useFriends from "../buddy/useFriends.js";
-import { foodById } from "../buddy/foods.js";
+import { foodById, isGolden } from "../buddy/foods.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
   getPose,
@@ -62,6 +62,7 @@ export default function Home({ onNavigate }) {
   const [knocking, setKnocking] = useState(false);
   const [cycle, setCycle] = useState(0); // bumps each time Buddy steps out
   const timers = useRef([]);
+  const feedLock = useRef(false); // a feeding (and any sharing after it) is under way
   // Food basket: snacks still in it, who has eaten, which snack is picked up,
   // who is chewing / happy right now, and where a dragged snack is.
   const [basket, setBasket] = useState({ foods: [], fed: [] });
@@ -70,6 +71,9 @@ export default function Home({ onNavigate }) {
   const [ghost, setGhost] = useState(null);
   const [eating, setEating] = useState(null);
   const [happy, setHappy] = useState(null);
+  const [eatingFoodId, setEatingFoodId] = useState(null);
+  const [sharedEat, setSharedEat] = useState(false);
+  const [partyAll, setPartyAll] = useState(false); // the golden treat
   const buddyStyle = useBuddyStyle();
   const [hour, setHour] = useState(currentHour);
   // The small friends wander, go home and come out on their own — except in
@@ -109,6 +113,7 @@ export default function Home({ onNavigate }) {
   busy.current =
     trayOpen ||
     !!eating ||
+    feedLock.current ||
     !!holding ||
     knocking ||
     isMoved(pose) ||
@@ -126,10 +131,7 @@ export default function Home({ onNavigate }) {
       if (presence === "in") stepOut("I'm back!");
       else goHome();
     }
-    id = setTimeout(
-      fire,
-      presence === "out" ? secs(40, 90) : secs(12, 30),
-    );
+    id = setTimeout(fire, presence === "out" ? secs(40, 90) : secs(12, 30));
     return () => clearTimeout(id);
   }, [roam, presence]);
 
@@ -170,11 +172,15 @@ export default function Home({ onNavigate }) {
       ? "chew"
       : happy === "lead"
         ? "cheer"
-        : sleepy
-          ? "sleepy"
-          : streak >= DANCE_STREAK
-            ? "dance"
-            : "wave";
+        : partyAll
+          ? "dance"
+          : trayOpen && !basket.fed.includes("lead") && presence === "out"
+            ? "hungry"
+            : sleepy
+              ? "sleepy"
+              : streak >= DANCE_STREAK
+                ? "dance"
+                : "wave";
   const greeting =
     presence === "in"
       ? "Knock, knock on my door to call me out!"
@@ -231,28 +237,71 @@ export default function Home({ onNavigate }) {
     setTrayOpen(true);
   }
 
-  // Feed the held snack to a Buddy: it munches for 2s, then cheers.
-  async function feed(buddyId, foodId = holding) {
-    if (!foodId || eating) return;
-    const next = await window.__storage.feedBuddy(buddyId, foodId);
-    if (!next) return;
-    setBasket(next);
-    setHolding(null);
+  // One Buddy chews its snack — bite, bite, bite, crumbs flying — for 3s (a
+  // shared half takes 2s), then cheers. `then` runs once it has finished.
+  function eat(buddyId, foodId, { shared = false, then } = {}) {
     setHappy(null);
     setEating(buddyId);
-    window.__audio.playMunch?.(1, 6);
+    setEatingFoodId(foodId);
+    setSharedEat(shared);
+    window.__audio.playMunch?.(1, shared ? 6 : 9);
     timers.current.push(
-      setTimeout(() => {
-        setEating(null);
-        setHappy(buddyId);
-        if (buddyId === "lead") {
-          const line = "Yum yum! Thank you!";
-          setBubble(line);
-          window.__audio.buddySay?.(line);
-        }
-        timers.current.push(setTimeout(() => setHappy(null), 2600));
-      }, 2000),
+      setTimeout(
+        () => {
+          setEating(null);
+          setEatingFoodId(null);
+          setSharedEat(false);
+          setHappy(buddyId);
+          if (buddyId === "lead") {
+            const line = "Yum yum! Thank you!";
+            setBubble(line);
+            window.__audio.buddySay?.(line);
+          }
+          timers.current.push(setTimeout(() => setHappy(null), 2600));
+          then?.();
+        },
+        shared ? 2000 : 3000,
+      ),
     );
+  }
+
+  // Feed the held snack to a Buddy. One that has already eaten may take another
+  // while someone is still hungry: it eats half and shares the rest with them.
+  async function feed(buddyId, foodId = holding) {
+    if (!foodId || eating || feedLock.current) return;
+    feedLock.current = true;
+    const next = await window.__storage.feedBuddy(buddyId, foodId);
+    if (!next) {
+      feedLock.current = false;
+      return;
+    }
+    setBasket(next);
+    setHolding(null);
+    if (isGolden(foodId)) {
+      setPartyAll(true);
+      timers.current.push(setTimeout(() => setPartyAll(false), 6000));
+    }
+    eat(buddyId, foodId, {
+      then: () => {
+        if (!next.sharedWith) {
+          feedLock.current = false;
+          return;
+        }
+        const line = "Sharing is caring!";
+        setBubble(line);
+        window.__audio.buddySay?.(line);
+        timers.current.push(
+          setTimeout(
+            () =>
+              eat(next.sharedWith, foodId, {
+                shared: true,
+                then: () => (feedLock.current = false),
+              }),
+            900,
+          ),
+        );
+      },
+    });
   }
 
   // Pick up a snack: drag it onto a Buddy and let go, or just tap it and then
@@ -323,6 +372,10 @@ export default function Home({ onNavigate }) {
         fed={basket.fed}
         eatingId={eating}
         happyId={happy}
+        eatingFood={foodById(eatingFoodId)}
+        sharedEat={sharedEat}
+        hungry={trayOpen}
+        partyAll={partyAll}
         onFeed={feed}
         friends={friends.friends}
         onFriendPose={friends.setPose}
@@ -337,6 +390,8 @@ export default function Home({ onNavigate }) {
           walking={presence === "coming" || presence === "going" || arriving}
           facing={presence === "going" ? "left" : "right"}
           label="Buddy"
+          snack={eating === "lead" ? foodById(eatingFoodId) : null}
+          shared={sharedEat}
           onTap={buddyTapped}
           movable
           pose={pose}

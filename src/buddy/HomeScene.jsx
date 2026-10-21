@@ -314,6 +314,13 @@ export default function HomeScene({
   eatingId = null,
   happyId = null,
   onFeed,
+  // eatingFood: the snack the eater is chewing; sharedEat: it is a shared half.
+  // hungry: the tray is open, so Buddies who haven't eaten look hopeful.
+  // partyAll: the golden treat — everyone dances, with sparkles.
+  eatingFood = null,
+  sharedEat = false,
+  hungry = false,
+  partyAll = false,
   // The small friends (see useFriends): where each one is, how to move one
   // that's picked up, and the knock on their cottage door.
   friends,
@@ -474,14 +481,18 @@ export default function HomeScene({
               mood={
                 eatingId === f.color
                   ? "chew"
-                  : happyId === f.color
+                  : happyId === f.color || partyAll
                     ? "cheer"
-                    : night
-                      ? "sleepy"
-                      : cheering
-                        ? "cheer"
-                        : f.mood
+                    : hungry && !fed.includes(f.color)
+                      ? "hungry"
+                      : night
+                        ? "sleepy"
+                        : cheering
+                          ? "cheer"
+                          : f.mood
               }
+              snack={eatingId === f.color ? eatingFood : null}
+              shared={sharedEat}
               color={f.color}
               size={narrow ? f.size * 0.75 : f.size}
               pitch={f.pitch}
@@ -502,7 +513,7 @@ export default function HomeScene({
                 );
               }}
             />
-            {holding && !fed.includes(f.color) && (
+            {holding && (
               <FeedTarget
                 id={f.color}
                 label={`${f.color} friend`}
@@ -513,10 +524,26 @@ export default function HomeScene({
         );
       })}
 
+      {partyAll && (
+        <div className="scene-sparkles" aria-hidden="true">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                left: `${6 + ((i * 37) % 88)}%`,
+                animationDelay: `${(i % 7) * 0.35}s`,
+              }}
+            >
+              {i % 3 === 0 ? "🌟" : "✨"}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className={`scene-lead scene-lead--${presence}`}>
         <div key={cycle} className={`scene-act scene-act--${action}`}>
           {children}
-          {holding && presence === "out" && !fed.includes("lead") && (
+          {holding && presence === "out" && (
             <FeedTarget id="lead" label="Buddy" onFeed={onFeed} />
           )}
           {action === "sing" && (

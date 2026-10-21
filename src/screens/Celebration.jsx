@@ -23,7 +23,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
   const [practiceNumber, setPracticeNumber] = useState(1);
   const [newSticker, setNewSticker] = useState(null);
   const [unlocked, setUnlocked] = useState([]);
-  const [gotBasket, setGotBasket] = useState(false);
+  const [basket, setBasket] = useState(null); // { golden } once claimed
   const buddyStyle = useBuddyStyle();
   const party = useMemo(pickPartyStyle, []);
 
@@ -56,7 +56,7 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
         );
       }
       // Finishing the whole list earns a basket of snacks for the Buddies.
-      setGotBasket(await window.__storage.claimBasket(sessionId));
+      setBasket(await window.__storage.claimBasket(sessionId));
       const words = await window.__storage.getWords(listId);
       setWordCount(words.length);
       setChildName(await window.__storage.getChildName());
@@ -127,12 +127,17 @@ export default function Celebration({ listId, sessionId, onNavigate }) {
             </button>
           </div>
         )}
-        {gotBasket && (
+        {basket && (
           <div className="mt-3 text-base text-orange-600">
             <p>
-              <span className="text-2xl">🧺</span> You earned a basket of food
-              for the Buddies!
+              <span className="text-2xl">{basket.golden ? "🎂" : "🧺"}</span>{" "}
+              You earned a basket of food for the Buddies!
             </p>
+            {basket.golden && (
+              <p className="mt-1 font-semibold text-amber-600">
+                ✨ A golden treat is in it — it makes everyone dance! ✨
+              </p>
+            )}
             <button
               type="button"
               onClick={() => onNavigate("home")}

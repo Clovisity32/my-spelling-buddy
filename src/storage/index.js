@@ -4,7 +4,11 @@
 // async interface and changing one import, not touching any screen.
 import * as idb from "./idb.js";
 
-import { pickBasketFoods } from "../buddy/foods.js";
+import {
+  BUDDY_IDS,
+  isGoldenPractice,
+  pickBasketFoods,
+} from "../buddy/foods.js";
 
 const DEFAULT_CHILD_NAME = "Chloe";
 
@@ -335,7 +339,8 @@ export async function setBuddyStyle({ color, accessory }) {
 // Finishing a whole list earns one basket of snacks to feed the Buddies. The
 // row keeps which sessions already paid out (so Celebration re-mounting, or
 // a redo from Review, can never pay twice), the snacks still in the basket,
-// and which Buddies have already been fed from it (one snack each).
+// and which Buddies have been fed this round. A basket has a snack for each of
+// the five Buddies; every 10th practice it also holds a golden treat.
 
 async function readBasket() {
   const row = await idb.get("settings", "basket");
@@ -352,32 +357,44 @@ export async function getBasket() {
   return { foods, fed };
 }
 
-// True if this session has a basket (now or already) — safe to call twice.
+// Safe to call twice for the same session. Returns { golden }: whether this
+// practice's basket holds the golden treat (every 10th completed practice).
 export async function claimBasket(sessionId) {
   const row = await readBasket();
-  if (row.claimed.includes(sessionId)) return true;
+  const golden = isGoldenPractice(await getTotalCompletedSessionCount());
+  if (row.claimed.includes(sessionId)) return { golden };
   await idb.put("settings", {
     ...row,
     claimed: [...row.claimed, sessionId],
-    foods: [...row.foods, ...pickBasketFoods()],
+    foods: [...row.foods, ...pickBasketFoods({ golden })],
     fed: [],
   });
-  return true;
+  return { golden };
 }
 
-// Feed one snack to one Buddy. Returns the new basket, or null if that Buddy
-// has already eaten from this basket or the snack isn't there.
+// Feed one snack to one Buddy. Returns { foods, fed, sharedWith }, or null if
+// the snack isn't in the basket.
+// A Buddy that has already eaten this round may take another only while
+// someone is still hungry: it shares it, so that hungry Buddy is fed too
+// (sharedWith) and nobody is left out. When every Buddy has been fed and
+// snacks remain, a new round starts.
 export async function feedBuddy(buddyId, foodId) {
   const row = await readBasket();
   const at = row.foods.indexOf(foodId);
-  if (at < 0 || row.fed.includes(buddyId)) return null;
-  const next = {
-    ...row,
-    foods: row.foods.filter((_, i) => i !== at),
-    fed: [...row.fed, buddyId],
-  };
-  await idb.put("settings", next);
-  return { foods: next.foods, fed: next.fed };
+  if (at < 0) return null;
+  let fed = [...row.fed];
+  let sharedWith = null;
+  if (fed.includes(buddyId)) {
+    sharedWith = BUDDY_IDS.find((id) => id !== buddyId && !fed.includes(id));
+    if (!sharedWith) return null;
+    fed.push(sharedWith);
+  } else {
+    fed.push(buddyId);
+  }
+  const foods = row.foods.filter((_, i) => i !== at);
+  if (foods.length > 0 && BUDDY_IDS.every((id) => fed.includes(id))) fed = [];
+  await idb.put("settings", { ...row, foods, fed });
+  return { foods, fed, sharedWith };
 }
 
 // Timestamp of the most recent completed practice, or null if she has never
