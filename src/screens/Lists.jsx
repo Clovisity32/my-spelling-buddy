@@ -104,6 +104,13 @@ export default function Lists({ mode, onNavigate }) {
           >
             Add list
           </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("photoImport")}
+            className="btn btn-secondary btn-sm"
+          >
+            📷 New list from a photo
+          </button>
         </div>
       )}
       {/* The list grid is the one part of this screen allowed to scroll if a

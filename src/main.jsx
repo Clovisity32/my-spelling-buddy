@@ -13,6 +13,8 @@ import * as playback from "./audio/playback.js";
 import * as tts from "./audio/tts.js";
 import * as strokes from "./canvas/strokes.js";
 import { playClickSound } from "./audio/sounds.js";
+import { readListPhoto } from "./import/readPhoto.js";
+import { normalizeWords } from "./import/normalize.js";
 
 if (typeof window !== "undefined") {
   window.__storage = storage;
@@ -27,6 +29,8 @@ if (typeof window !== "undefined") {
     ...tts,
   };
   window.__canvas = strokes;
+  // Tests replace readListPhoto so no photo ever leaves the browser.
+  window.__import = { readListPhoto, normalizeWords };
   window.addEventListener("pointerup", () => audioContext.primeAudio(), {
     once: true,
   });

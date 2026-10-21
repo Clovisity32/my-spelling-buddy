@@ -5,6 +5,7 @@ import Home from "./screens/Home.jsx";
 import ParentMenu from "./screens/ParentMenu.jsx";
 import Lists from "./screens/Lists.jsx";
 import ListEditor from "./screens/ListEditor.jsx";
+import PhotoImport from "./screens/PhotoImport.jsx";
 import Test from "./screens/Test.jsx";
 import Celebration from "./screens/Celebration.jsx";
 import Review from "./screens/Review.jsx";
@@ -53,6 +54,7 @@ export default function App() {
       {screen === "home" && <Home onNavigate={navigate} />}
       {screen === "parentMenu" && <ParentMenu onNavigate={navigate} />}
       {screen === "lists" && <Lists mode={params.mode} onNavigate={navigate} />}
+      {screen === "photoImport" && <PhotoImport onNavigate={navigate} />}
       {screen === "editor" && (
         <ListEditor listId={params.listId} onNavigate={navigate} />
       )}

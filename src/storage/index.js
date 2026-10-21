@@ -307,6 +307,25 @@ export async function setChildName(name) {
   await idb.put("settings", { id: "profile", childName: trimmed });
 }
 
+// The key used to read spelling-list photos with Claude. It lives only in
+// this device's IndexedDB and is kept out of backup files (exportData /
+// importData skip the row), so sharing a backup never shares the key.
+const AI_ROW = "ai";
+
+export async function getAiKey() {
+  const row = await idb.get("settings", AI_ROW);
+  return row?.apiKey || "";
+}
+
+export async function setAiKey(apiKey) {
+  const trimmed = apiKey?.trim();
+  if (!trimmed) {
+    await idb.del("settings", AI_ROW);
+    return;
+  }
+  await idb.put("settings", { id: AI_ROW, apiKey: trimmed });
+}
+
 // The sticker collection is built but off by default for now — a parent
 // opts in from Parents rather than it appearing unannounced. Separate
 // settings row from "profile" since this is a feature flag, not part of
@@ -474,7 +493,7 @@ export async function exportData() {
     attempts,
     marks,
     sessions,
-    settings,
+    settings: settings.filter((row) => row.id !== AI_ROW),
   };
 }
 
@@ -494,5 +513,6 @@ export async function importData(data) {
   for (const a of data.attempts || []) await idb.put("attempts", a);
   for (const m of data.marks || []) await idb.put("marks", m);
   for (const s of data.sessions || []) await idb.put("sessions", s);
-  for (const s of data.settings || []) await idb.put("settings", s);
+  for (const s of data.settings || [])
+    if (s.id !== AI_ROW) await idb.put("settings", s);
 }
