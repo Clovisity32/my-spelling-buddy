@@ -123,14 +123,22 @@ export async function readListPhoto(file, apiKey, covers = []) {
       "busy",
       "The reader is busy right now. Wait a minute and try again.",
     );
-  if (!res.ok)
+  if (!res.ok) {
+    // Show what the service said (never the key) so a wrong model name or a
+    // rejected request can be told apart from a blurry photo.
+    const body = await res.json().catch(() => null);
+    const why = body?.error?.message ? `: ${body.error.message}` : "";
     throw new ReadError(
       "other",
-      "The photo couldn't be read. Try a clearer picture.",
+      `The photo couldn't be read (error ${res.status}${why}).`,
     );
+  }
   const json = await res.json();
   const call = json.content?.find((b) => b.type === "tool_use");
   if (!call?.input)
-    throw new ReadError("other", "No words were found. Try a clearer picture.");
+    throw new ReadError(
+      "other",
+      `No words came back (${json.stop_reason || "no reason given"}). Try a clearer picture.`,
+    );
   return { title: call.input.title || "", words: call.input.words || [] };
 }

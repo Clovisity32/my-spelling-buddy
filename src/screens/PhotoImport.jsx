@@ -95,7 +95,12 @@ export default function PhotoImport({ onNavigate }) {
     try {
       const out = await window.__import.readListPhoto(file, apiKey, covers);
       const words = window.__import.normalizeWords(out.words);
-      if (!words.length) throw new Error("No words were found.");
+      if (!words.length)
+        throw {
+          kind: "other",
+          message:
+            "The reader found no words on that photo. Make sure the whole sheet is in the picture and try again.",
+        };
       setRows(words);
       setName(
         out.title?.trim() ||
@@ -108,7 +113,7 @@ export default function PhotoImport({ onNavigate }) {
           ? { kind: err.kind, message: err.message }
           : {
               kind: "other",
-              message: "No words were found. Try a clearer picture.",
+              message: `Something went wrong reading the photo${err?.message ? ` (${err.message})` : ""}. Try again.`,
             },
       );
       setStep("cover");
