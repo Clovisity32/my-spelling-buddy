@@ -131,6 +131,17 @@
     opacity 0.3s;
 }
 /* Indoors: out of sight until it walks out of the cottage door. */
+/* Phone width: the lawn is short, so it starts right beside Buddy's house and
+   the friends stand a little further back — behind Buddy rather than squeezed
+   in beside it. */
+@media (max-width: 560px) {
+  .scene {
+    --lawn-l: calc(4% + var(--house-w) + 1rem + 70px);
+  }
+  .scene-friend {
+    bottom: calc(var(--ground) - 0.5rem);
+  }
+}
 .scene-friend--in {
   opacity: 0;
   visibility: hidden;

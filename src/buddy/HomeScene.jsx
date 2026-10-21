@@ -206,6 +206,23 @@ function House({ phase, doorOpen, presence, knocking, onKnock }) {
   );
 }
 
+// True on a phone-width screen, where the lawn is short: the friends shrink
+// (and scene.css lets them stand behind Buddy) so they aren't all piled up.
+function useNarrow() {
+  const query = "(max-width: 560px)";
+  const [narrow, setNarrow] = useState(
+    () => !!window.matchMedia?.(query).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia?.(query);
+    if (!mq) return undefined;
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
+
 // The cottage where the four small friends live: a blue roof with a pennant in
 // each friend's colour, round windows, and a door that swings open whenever
 // one of them walks in or out.
@@ -305,6 +322,7 @@ export default function HomeScene({
   onKnockFriends,
 }) {
   const phase = phaseOf(hour);
+  const narrow = useNarrow();
   const lawnA = useRef(null);
   const lawnB = useRef(null);
   const friendsDoorOpen = FRIENDS.some((f) =>
@@ -465,7 +483,7 @@ export default function HomeScene({
                         : f.mood
               }
               color={f.color}
-              size={f.size}
+              size={narrow ? f.size * 0.75 : f.size}
               pitch={f.pitch}
               label={`${f.color} friend`}
               onTap={() => {
