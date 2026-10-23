@@ -4,7 +4,8 @@ import PageHeader from "../components/PageHeader.jsx";
 import { WRITE_AS, WRITE_AS_KINDS } from "../writeAs.js";
 
 // Steps: key (first time only) → pick a photo → cover her name → reading →
-// review the words → create the list.
+// review the words → create the list. From review, "Add another page" loops
+// back to pick; each page's words are appended to the same list.
 export default function PhotoImport({ onNavigate }) {
   const [step, setStep] = useState("loading");
   const [apiKey, setApiKey] = useState("");
@@ -101,9 +102,12 @@ export default function PhotoImport({ onNavigate }) {
           message:
             "The reader found no words on that photo. Make sure the whole sheet is in the picture and try again.",
         };
-      setRows(words);
+      // Later pages add to the words already read; the first page names the list.
+      setRows((rs) => [...rs, ...words]);
       setName(
-        out.title?.trim() ||
+        (n) =>
+          n.trim() ||
+          out.title?.trim() ||
           `Spelling ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`,
       );
       setStep("review");
@@ -197,8 +201,9 @@ export default function PhotoImport({ onNavigate }) {
         {step === "pick" && (
           <div className="card max-w-lg space-y-3">
             <p className="text-slate-700">
-              Take a clear photo of the whole spelling sheet, or choose one you
-              already have. Next you can cover her name before anything is sent.
+              {rows.length
+                ? "Take or choose the next page. Its words will be added to the same list."
+                : "Take a clear photo of the whole spelling sheet, or choose one you already have. Next you can cover her name before anything is sent. If the words run over to a second page, you can add it afterwards."}
             </p>
             <label className="btn btn-primary btn-sm inline-block cursor-pointer">
               📷 Take or choose a photo
@@ -210,15 +215,27 @@ export default function PhotoImport({ onNavigate }) {
                 className="sr-only"
               />
             </label>
-            <div>
-              <button
-                type="button"
-                onClick={forgetKey}
-                className="text-sm text-slate-500 underline"
-              >
-                Remove the saved key
-              </button>
-            </div>
+            {rows.length > 0 ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setStep("review")}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Back to the words
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  onClick={forgetKey}
+                  className="text-sm text-slate-500 underline"
+                >
+                  Remove the saved key
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -383,6 +400,13 @@ export default function PhotoImport({ onNavigate }) {
               className="btn btn-secondary btn-sm"
             >
               Add a word
+            </button>{" "}
+            <button
+              type="button"
+              onClick={() => setStep("pick")}
+              className="btn btn-secondary btn-sm"
+            >
+              📷 Add another page
             </button>
             {rows.some((r) => r.writeAs === "pinyin") && (
               <label className="flex items-center gap-2 text-slate-700">

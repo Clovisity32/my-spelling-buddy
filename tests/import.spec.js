@@ -82,7 +82,9 @@ test("photo → cover her name → check the words → a new list with the right
 
   await page.getByRole("button", { name: "Read the words" }).click();
   await expect(page.getByLabel("List name")).toHaveValue("第十七课 21 Oct");
-  await expect(page.getByLabel("Word 1", { exact: true })).toHaveValue("shàng kè");
+  await expect(page.getByLabel("Word 1", { exact: true })).toHaveValue(
+    "shàng kè",
+  );
   await expect(page.getByLabel("Characters for word 1")).toHaveValue("上课");
   expect(await page.evaluate(() => window.__sent)).toEqual({
     key: "test-key-not-real",
@@ -111,6 +113,57 @@ test("photo → cover her name → check the words → a new list with the right
       "pinyin:tái shàng:台上",
       "hanzi:台上:null",
     ]);
+});
+
+test("a sheet that runs over two photos ends up as one list", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await window.__storage.setAiKey("test-key-not-real");
+    let n = 0;
+    window.__import.readListPhoto = async () => {
+      n += 1;
+      return n === 1
+        ? {
+            title: "Two page list",
+            words: [{ text: "apple", writeAs: "english" }],
+          }
+        : {
+            title: "Ignored second title",
+            words: [{ text: "bangle", writeAs: "english" }],
+          };
+    };
+  });
+  await openImport(page);
+
+  const photo = { name: "sheet.png", mimeType: "image/png", buffer: PIXEL };
+  await page.getByLabel("Photo of the spelling list").setInputFiles(photo);
+  await page.getByRole("button", { name: "Read the words" }).click();
+  await expect(page.getByLabel("Word 1", { exact: true })).toHaveValue("apple");
+
+  await page.getByRole("button", { name: "Add another page" }).click();
+  await page.getByLabel("Photo of the spelling list").setInputFiles(photo);
+  await page.getByRole("button", { name: "Read the words" }).click();
+
+  await expect(page.getByLabel("List name")).toHaveValue("Two page list");
+  await expect(page.getByLabel("Word 1", { exact: true })).toHaveValue("apple");
+  await expect(page.getByLabel("Word 2", { exact: true })).toHaveValue(
+    "bangle",
+  );
+  await page.getByRole("button", { name: "Create list (2 words)" }).click();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(async () => {
+        const l = (await window.__storage.getLists()).find(
+          (x) => x.name === "Two page list",
+        );
+        if (!l) return null;
+        return (await window.__storage.getWords(l.id)).map((w) => w.text);
+      }),
+    )
+    .toEqual(["apple", "bangle"]);
 });
 
 test("a rejected key or no internet says what to do next", async ({ page }) => {
