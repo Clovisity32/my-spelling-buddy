@@ -43,7 +43,7 @@ Playwright, `tests/*.spec.js`, run against the built app (not dev server) per `p
 ### Test-only scene behaviour
 
 - Automated browsers (`navigator.webdriver`) get a still scene (no door entrance, daily action or friends' moves) and the "dance" celebration, so tests can aim at and click on moving things.
-- URL switches for previewing and testing: `?hour=22` (fake the clock), `?scene=live` (turn animations back on), `?party=sing|run|queue|dance`, `?buddy=in` (start with Buddy indoors, since there is no "Send Buddy home" button any more), `?roam=fast` (wander/go-home timers ~6× shorter; use with `?scene=live`).
+- URL switches for previewing and testing: `?hour=22` (fake the clock), `?scene=live` (turn animations back on), `?party=sing|run|queue|dance`, `?buddy=in` (start with Buddy indoors, since there is no "Send Buddy home" button any more), `?roam=fast` (wander/go-home timers ~6× shorter; use with `?scene=live`), `?xmas=1|0` (force the Christmas theme on/off; automated browsers get no Christmas theme unless `?xmas=1`).
 - Don't auto-speak on Home mount: browsers block sound before a tap, and some tests stub `buddySay` after load.
 
 ## Deploy
@@ -54,6 +54,7 @@ Pushing to `master` deploys to GitHub Pages via `.github/workflows/deploy-pages.
 
 | Date    | What changed                                                                                                                                                                                                                                                                                                                            |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11 | Christmas theme tuned: bigger tree (own placement ≤900px wide), Santa/elf/reindeer outfits, daily-rotating present surprises, bigger friends in season                                                                                                                                                                                  |
 | 2026-11 | Christmas season (9 Nov – 31 Dec, yearly): snow, lit tree with star, Santa outfits for all Buddies, Jingle Bells sing-along, daily presents for each Buddy                                                                                                                                                                              |
 | 2026-10 | Pikachu-style chirp voice, time-of-day Home scene with daily door entrance, 3D spins, varied celebration parties, per-friend voices and moves; GitHub Actions bumped to current majors                                                                                                                                                  |
 | 2026-10 | Home scene is now full-bleed (the page itself, controls float on it); Buddy can go home ("Send Buddy home") and a knock on the door (`playKnock`) brings it back out — `presence` out/going/in/coming lives in `Home.jsx`                                                                                                               |
