@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import Screen from "../components/Screen.jsx";
 import PageHeader from "../components/PageHeader.jsx";
-import {
-  STICKERS,
-  getEarnedStickers,
-  getNextSticker,
-} from "../stickers.js";
+import { STICKERS, getEarnedStickers, getNextSticker } from "../stickers.js";
 
 export default function Stickers({ onNavigate }) {
   const [total, setTotal] = useState(0);
@@ -22,7 +18,9 @@ export default function Stickers({ onNavigate }) {
   // it, then the one that is next — so there is always a sticker to aim for.
   const shown = [
     ...STICKERS,
-    ...earnedList.filter((s) => !STICKERS.some((f) => f.threshold === s.threshold)),
+    ...earnedList.filter(
+      (s) => !STICKERS.some((f) => f.threshold === s.threshold),
+    ),
     ...(STICKERS.some((s) => s.threshold === next.threshold) ? [] : [next]),
   ];
 

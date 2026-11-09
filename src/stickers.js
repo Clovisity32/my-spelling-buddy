@@ -36,7 +36,6 @@ const superstar = (threshold) => ({
 
 const isSuperstar = (n) => n > LAST_FIXED && n % SUPERSTAR_EVERY === 0;
 
-
 export function getEarnedStickers(totalCompletedSessions) {
   const earned = STICKERS.filter((s) => s.threshold <= totalCompletedSessions);
   for (

@@ -29,8 +29,10 @@ test("the practice screen says what to write, per word, and the voice cues Chine
     // a parent's explicit choice beats what the content suggests
     await add({ text: "mama", useTts: true, writeAs: "pinyin" });
     window.__events = [];
-    window.__audio.playWriteCue = async (w) => window.__events.push(`cue:${w.text}`);
-    window.__audio.playWordEntry = async (w) => window.__events.push(`word:${w.text}`);
+    window.__audio.playWriteCue = async (w) =>
+      window.__events.push(`cue:${w.text}`);
+    window.__audio.playWordEntry = async (w) =>
+      window.__events.push(`word:${w.text}`);
   });
   await page.getByRole("button", { name: "Practise" }).click();
   await page.getByText("Write list").click();
@@ -76,7 +78,11 @@ test("the spoken cue is 写汉字 or 写拼音 in Mandarin, and nothing for Engl
     window.__audio.playWriteCue({ text: "owl" });
     return out;
   });
-  expect(said.map((s) => s.split("|")[0])).toEqual(["写汉字", "写拼音", "写汉字"]);
+  expect(said.map((s) => s.split("|")[0])).toEqual([
+    "写汉字",
+    "写拼音",
+    "写汉字",
+  ]);
 });
 
 test("the list editor presets what she writes from the word, and a parent can change it", async ({
@@ -99,7 +105,10 @@ test("the list editor presets what she writes from the word, and a parent can ch
   };
 
   await input.fill("你好");
-  await expect(writes("Chinese characters")).toHaveAttribute("aria-pressed", "true");
+  await expect(writes("Chinese characters")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await addAloud();
   await expect(page.getByRole("listitem")).toHaveCount(1);
 

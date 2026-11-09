@@ -140,32 +140,32 @@ export default function DressUp({ onNavigate }) {
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto pb-2 pt-4">
         {who === "lead" && (
-        <section className="w-full">
-          <p className="t-label mb-2">Colour</p>
-          <div className="flex flex-wrap gap-3">
-            {COLOR_UNLOCKS.map((c) => {
-              const open = isUnlocked(c, total);
-              const on = style.color === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  disabled={!open}
-                  onClick={() => choose({ color: c.id })}
-                  aria-label={
-                    open ? `${c.label} colour` : `${c.label} colour, locked`
-                  }
-                  aria-pressed={on}
-                  title={open ? c.label : lockedHint(c)}
-                  className={`h-14 w-14 rounded-full border-4 shadow transition active:scale-95 ${on ? "scale-110 border-emerald-500" : "border-white"} ${open ? "" : "opacity-30 grayscale"}`}
-                  style={{ background: BUDDY_COLORS[c.id].body }}
-                >
-                  {open ? "" : "🔒"}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+          <section className="w-full">
+            <p className="t-label mb-2">Colour</p>
+            <div className="flex flex-wrap gap-3">
+              {COLOR_UNLOCKS.map((c) => {
+                const open = isUnlocked(c, total);
+                const on = style.color === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!open}
+                    onClick={() => choose({ color: c.id })}
+                    aria-label={
+                      open ? `${c.label} colour` : `${c.label} colour, locked`
+                    }
+                    aria-pressed={on}
+                    title={open ? c.label : lockedHint(c)}
+                    className={`h-14 w-14 rounded-full border-4 shadow transition active:scale-95 ${on ? "scale-110 border-emerald-500" : "border-white"} ${open ? "" : "opacity-30 grayscale"}`}
+                    style={{ background: BUDDY_COLORS[c.id].body }}
+                  >
+                    {open ? "" : "🔒"}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         <section className="w-full">
@@ -174,8 +174,9 @@ export default function DressUp({ onNavigate }) {
             {ACCESSORY_UNLOCKS.map((a) => {
               const open = isUnlocked(a, total);
               const on =
-                (who === "lead" ? style.accessory : friendStyles[who] || "none") ===
-                a.id;
+                (who === "lead"
+                  ? style.accessory
+                  : friendStyles[who] || "none") === a.id;
               return (
                 <button
                   key={a.id}

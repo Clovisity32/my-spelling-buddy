@@ -87,7 +87,9 @@ test("a friend's wardrobe opens at its own milestone, and what it wears is remem
     page.getByRole("button", { name: "Outfits for mint friend, locked" }),
   ).toBeDisabled();
 
-  await page.getByRole("button", { name: "Outfits for lavender friend" }).click();
+  await page
+    .getByRole("button", { name: "Outfits for lavender friend" })
+    .click();
   // a friend keeps its own colour: only Buddy picks one
   await expect(page.getByText("Colour", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Crown" }).click();
