@@ -105,6 +105,148 @@ function Accessory({ kind }) {
   }
 }
 
+// Christmas attire: a red scarf (green on the warm-coloured ones) with a tail,
+// and a Santa hat with a fluffy pom-pom.
+const GREEN_SCARF = new Set(["peach", "rose", "coral"]);
+
+function Scarf({ color }) {
+  const main = GREEN_SCARF.has(color) ? "#2f9e5b" : "#e5484d";
+  const edge = GREEN_SCARF.has(color) ? "#1f7a43" : "#b4252b";
+  return (
+    <g data-festive="scarf" strokeLinejoin="round">
+      <path
+        d="M138 196 L162 192 L170 238 L146 244 Z"
+        fill={main}
+        stroke={edge}
+        strokeWidth="3"
+      />
+      <path
+        d="M147 226 L167 222 M149 236 L169 232"
+        stroke="#fff"
+        strokeWidth="3"
+      />
+      <path
+        d="M26 172 Q100 198 174 172 L176 190 Q100 216 24 190 Z"
+        fill={main}
+        stroke={edge}
+        strokeWidth="3"
+      />
+      <g stroke="#fff" strokeWidth="3.5" strokeLinecap="round">
+        {[
+          [48, 179],
+          [78, 184],
+          [100, 185],
+          [122, 184],
+          [152, 179],
+        ].map(([x, y]) => (
+          <path key={x} d={`M${x} ${y} L${x} ${y + 15}`} />
+        ))}
+      </g>
+    </g>
+  );
+}
+
+// A green elf hat: tall and floppy, with a red band and a golden bell.
+function ElfHat() {
+  return (
+    <g data-festive="hat" data-outfit="elf" strokeLinejoin="round">
+      <path
+        d="M66 40 C72 14 100 0 132 -8 C124 8 130 26 136 40 Z"
+        fill="#2f9e5b"
+        stroke="#1f7a43"
+        strokeWidth="3"
+      />
+      <path
+        d="M82 22 Q96 10 114 6"
+        stroke="#fff"
+        strokeWidth="3"
+        opacity="0.35"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <rect
+        x="58"
+        y="32"
+        width="84"
+        height="16"
+        rx="8"
+        fill="#e5484d"
+        stroke="#b4252b"
+        strokeWidth="2.5"
+      />
+      <circle
+        cx="132"
+        cy="-8"
+        r="7"
+        fill="#ffd54a"
+        stroke="#d98a00"
+        strokeWidth="2.5"
+      />
+      <circle cx="130" cy="-10" r="2" fill="#fff" />
+    </g>
+  );
+}
+
+// Reindeer antlers and a shiny red nose.
+function ReindeerAntlers() {
+  return (
+    <g data-festive="hat" data-outfit="reindeer">
+      <g fill="none" stroke="#8a5a33" strokeWidth="5" strokeLinecap="round">
+        <path d="M78 38 Q70 14 62 2 M71 20 Q62 18 56 11" />
+        <path d="M122 38 Q130 14 138 2 M129 20 Q138 18 144 11" />
+      </g>
+      <circle
+        cx="100"
+        cy="140"
+        r="7"
+        fill="#ff3b4e"
+        stroke="#c4162b"
+        strokeWidth="2"
+      />
+      <circle cx="97.5" cy="137.5" r="2" fill="#fff" opacity="0.9" />
+    </g>
+  );
+}
+
+function SantaHat() {
+  return (
+    <g data-festive="hat" data-outfit="santa" strokeLinejoin="round">
+      <path
+        d="M68 40 C70 12 96 2 120 8 C138 12 146 24 150 34 C140 30 134 32 134 40 Z"
+        fill="#e5484d"
+        stroke="#b4252b"
+        strokeWidth="3"
+      />
+      <path
+        d="M84 20 Q96 12 110 14"
+        stroke="#fff"
+        strokeWidth="3"
+        opacity="0.4"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <rect
+        x="58"
+        y="32"
+        width="84"
+        height="16"
+        rx="8"
+        fill="#fff"
+        stroke="#d5dde8"
+        strokeWidth="2.5"
+      />
+      <circle
+        cx="150"
+        cy="36"
+        r="9"
+        fill="#fff"
+        stroke="#d5dde8"
+        strokeWidth="2.5"
+      />
+    </g>
+  );
+}
+
 // mood: idle | wave | listen | slow | cheer | love | dance | sleepy | chew |
 // hungry (hopeful sparkly eyes — a snack is coming). `snack` is the food being
 // eaten right now (see EatingSnack); `shared` makes it a half, shared one.
@@ -124,6 +266,10 @@ export default function Buddy({
   facing = "right",
   snack = null,
   shared = false,
+  // Christmas outfit: a scarf plus a "santa" hat, "elf" hat or "reindeer"
+  // antlers and nose (true = santa). It replaces a crown, party hat or flower;
+  // sunglasses and headphones stay on.
+  festive = false,
   onTap,
   label = "Buddy",
   className = "",
@@ -580,7 +726,12 @@ export default function Buddy({
                     />
                     <circle cx={cx + px + 3} cy={118 + py} r="3" fill="#fff" />
                     {mood === "hungry" && (
-                      <circle cx={cx + px - 3} cy={125 + py} r="2" fill="#fff" />
+                      <circle
+                        cx={cx + px - 3}
+                        cy={125 + py}
+                        r="2"
+                        fill="#fff"
+                      />
                     )}
                   </g>
                 ))}
@@ -681,7 +832,21 @@ export default function Buddy({
             />
             <Heart className="buddy-heart" x={100} y={226} size={3.2} />
 
-            <Accessory kind={accessory} />
+            {festive && <Scarf color={color} />}
+            <Accessory
+              kind={
+                festive && ["crown", "hat", "flower"].includes(accessory)
+                  ? "none"
+                  : accessory
+              }
+            />
+            {festive === "elf" ? (
+              <ElfHat />
+            ) : festive === "reindeer" ? (
+              <ReindeerAntlers />
+            ) : festive ? (
+              <SantaHat />
+            ) : null}
 
             {mood === "sleepy" &&
               [

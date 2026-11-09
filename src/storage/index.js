@@ -437,6 +437,36 @@ export async function feedBuddy(buddyId, foodId) {
   return { foods, fed, sharedWith };
 }
 
+// --- Christmas presents --------------------------------------------------
+// Each day in the Christmas season Chloe has one present for every Buddy. The
+// row remembers which present went to whom today ({ buddyId: giftId }); a new
+// day starts with a fresh set.
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+export async function getGifts() {
+  const row = await idb.get("settings", "gifts");
+  return row && row.day === today() ? row.given || {} : {};
+}
+
+// Put today's presents back under the tree (used by the tests).
+export async function clearGifts() {
+  await idb.del("settings", "gifts");
+}
+
+// Give one present to one Buddy. Returns the new { buddyId: giftId } map, or
+// null if that Buddy already has a present today, or the present is used up.
+export async function giveGift(buddyId, giftId) {
+  const given = await getGifts();
+  if (given[buddyId] || Object.values(given).includes(giftId)) return null;
+  const next = { ...given, [buddyId]: giftId };
+  await idb.put("settings", { id: "gifts", day: today(), given: next });
+  return next;
+}
+
 // Timestamp of the most recent completed practice, or null if she has never
 // finished one — Buddy uses it to be sleepy after a long gap.
 export async function getLastPracticeAt() {

@@ -10,7 +10,14 @@ import {
 } from "../buddy/timeOfDay.js";
 import useFriends from "../buddy/useFriends.js";
 import useFriendStyles from "../buddy/useFriendStyles.js";
-import { foodById, isGolden } from "../buddy/foods.js";
+import { BUDDY_IDS, foodById, isGolden } from "../buddy/foods.js";
+import {
+  buildCarol,
+  giftById,
+  giftsForToday,
+  isChristmas,
+  outfitFor,
+} from "../buddy/christmas.js";
 import useBuddyStyle from "../buddy/useBuddyStyle.js";
 import {
   getPose,
@@ -23,6 +30,17 @@ import {
 // length that earns a victory dance.
 const SLEEPY_AFTER_DAYS = 3;
 const DANCE_STREAK = 3;
+
+// How each small friend says "Thank you!" for a present (pitch, tempo — the
+// same voices as in HomeScene).
+const THANKS_VOICE = {
+  lavender: [1.35, 1.3],
+  mint: [1.05, 0.8],
+  butter: [1.55, 1.1],
+  rose: [0.9, 1.0],
+};
+const itemEmoji = (id) => foodById(id)?.emoji ?? (giftById(id) ? "🎁" : "");
+const presentName = (g) => `${g.id.replace("gift-", "")} present`;
 
 const BUDDY_LINES = [
   "Ready to spell?",
@@ -75,6 +93,13 @@ export default function Home({ onNavigate }) {
   const [eatingFoodId, setEatingFoodId] = useState(null);
   const [sharedEat, setSharedEat] = useState(false);
   const [partyAll, setPartyAll] = useState(false); // the golden treat
+  // Christmas (from 9 November each year): snow, the tree, outfits, carols and
+  // presents. See buddy/christmas.js.
+  const xmas = useMemo(isChristmas, []);
+  const [gifted, setGifted] = useState({}); // { buddyId: giftId } given today
+  const [giftTrayOpen, setGiftTrayOpen] = useState(false);
+  const [giftBurst, setGiftBurst] = useState(null);
+  const [caroling, setCaroling] = useState(false);
   const buddyStyle = useBuddyStyle();
   const friendStyles = useFriendStyles();
   const [totalPractices, setTotalPractices] = useState(0); // for the garden
@@ -90,7 +115,7 @@ export default function Home({ onNavigate }) {
   const friends = useFriends({
     roam,
     night: phaseOf(hour) === "night",
-    tray: trayOpen,
+    tray: trayOpen || giftTrayOpen,
     fed: basket.fed,
     fast: fastRoam,
   });
@@ -115,6 +140,9 @@ export default function Home({ onNavigate }) {
   const busy = useRef(false);
   busy.current =
     trayOpen ||
+    giftTrayOpen ||
+    caroling ||
+    !!giftBurst ||
     !!eating ||
     feedLock.current ||
     !!holding ||
@@ -155,6 +183,7 @@ export default function Home({ onNavigate }) {
       setLatestWords(await window.__storage.getWords(lists[0].id));
     })();
     (async () => setBasket(await window.__storage.getBasket()))();
+    if (xmas) (async () => setGifted(await window.__storage.getGifts()))();
     (async () =>
       setTotalPractices(
         await window.__storage.getTotalCompletedSessionCount(),
@@ -177,7 +206,7 @@ export default function Home({ onNavigate }) {
   const buddyMood =
     eating === "lead"
       ? "chew"
-      : happy === "lead"
+      : happy === "lead" || caroling || giftBurst?.id === "lead"
         ? "cheer"
         : partyAll
           ? "dance"
@@ -199,7 +228,13 @@ export default function Home({ onNavigate }) {
             ? "Zzz… oh! Is that you?"
             : streak >= DANCE_STREAK
               ? `${streak} days in a row! Let's dance!`
-              : action.line(childName ? ` ${childName}` : "");
+              : xmas
+                ? `Merry Christmas${childName ? ` ${childName}` : ""}! Let it snow!`
+                : action.line(childName ? ` ${childName}` : "");
+
+  const giftsLeft = giftsForToday().filter(
+    (g) => !Object.values(gifted).includes(g.id),
+  );
 
   // The test browser gets an instant, still scene, so the steps have no waits.
   function later(fn, ms) {
@@ -241,7 +276,75 @@ export default function Home({ onNavigate }) {
       return;
     }
     changePose(ZERO_POSE); // feeding targets sit on Buddy's home spot
+    setGiftTrayOpen(false);
+    setHolding(null);
     setTrayOpen(true);
+  }
+
+  function toggleGiftTray() {
+    if (giftTrayOpen) {
+      setGiftTrayOpen(false);
+      setHolding(null);
+      return;
+    }
+    changePose(ZERO_POSE); // targets sit on Buddy's home spot
+    setTrayOpen(false);
+    setHolding(null);
+    setGiftTrayOpen(true);
+  }
+
+  // Everyone sings "Jingle Bells" together: the lyrics appear in the speech
+  // bubble line by line, the snow falls harder, and notes float up. `finale`
+  // (after the last present) adds the golden-treat sparkles.
+  function startCarol({ finale = false } = {}) {
+    if (caroling) return;
+    setCaroling(true);
+    setTrayOpen(false);
+    setGiftTrayOpen(false);
+    setHolding(null);
+    let wait = 0;
+    if (presence === "in") {
+      stepOut("Let's sing!");
+      wait = 1700;
+    }
+    const plan = buildCarol();
+    const at = (fn, ms) => timers.current.push(setTimeout(fn, ms));
+    if (finale) setPartyAll(true);
+    at(() => window.__audio.playJingleBells?.(), wait);
+    plan.lines.forEach((l) => at(() => setBubble(l.text), wait + l.at));
+    at(() => {
+      setCaroling(false);
+      setPartyAll(false);
+      setBubble(null);
+    }, wait + plan.totalMs);
+  }
+
+  // Unwrap a present for one Buddy: the box shakes open, the surprise pops out
+  // and it keeps it by its feet. When all five have one, everybody sings.
+  async function give(buddyId, giftId) {
+    const gift = giftById(giftId);
+    if (!gift || giftBurst || caroling) return;
+    const next = await window.__storage.giveGift(buddyId, giftId);
+    setHolding(null);
+    if (!next) return;
+    setGifted(next);
+    setGiftBurst({ id: buddyId, prize: gift.prize, hue: gift.hue });
+    window.__audio.playUnwrap?.();
+    later(() => {
+      setGiftBurst(null);
+      if (buddyId === "lead") {
+        const line = `Thank you! I love my ${gift.label}!`;
+        setBubble(line);
+        window.__audio.buddySay?.(line);
+      } else {
+        const [pitch, tempo] = THANKS_VOICE[buddyId] || [1, 1];
+        window.__audio.playBuddyBabble?.("Thank you!", pitch, tempo);
+      }
+      if (BUDDY_IDS.every((id) => next[id])) {
+        setGiftTrayOpen(false);
+        later(() => startCarol({ finale: true }), 900);
+      }
+    }, 2400);
   }
 
   // One Buddy chews its snack — bite, bite, bite, crumbs flying — for 3s (a
@@ -275,6 +378,7 @@ export default function Home({ onNavigate }) {
   // Feed the held snack to a Buddy. One that has already eaten may take another
   // while someone is still hungry: it eats half and shares the rest with them.
   async function feed(buddyId, foodId = holding) {
+    if (giftById(foodId)) return give(buddyId, foodId);
     if (!foodId || eating || feedLock.current) return;
     feedLock.current = true;
     const next = await window.__storage.feedBuddy(buddyId, foodId);
@@ -385,6 +489,11 @@ export default function Home({ onNavigate }) {
         total={totalPractices}
         friendAccessories={friendStyles}
         partyAll={partyAll}
+        xmas={xmas}
+        caroling={caroling}
+        holdingGift={!!giftById(holding)}
+        gifted={gifted}
+        giftBurst={giftBurst}
         onFeed={feed}
         friends={friends.friends}
         onFriendPose={friends.setPose}
@@ -393,6 +502,7 @@ export default function Home({ onNavigate }) {
       >
         <Buddy
           mood={buddyMood}
+          festive={xmas && outfitFor(buddyStyle.color)}
           color={buddyStyle.color}
           accessory={buddyStyle.accessory}
           size={110}
@@ -432,13 +542,40 @@ export default function Home({ onNavigate }) {
         </div>
       )}
 
+      {giftTrayOpen && giftsLeft.length > 0 && (
+        <div className="relative z-10 mt-3 flex flex-wrap items-center justify-center gap-2 self-center rounded-2xl bg-white/90 px-3 py-2 shadow-md backdrop-blur">
+          <p className="text-sm font-semibold text-slate-600">
+            Give a present to a Buddy:
+          </p>
+          {giftsLeft.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              aria-label={`Pick up the ${presentName(g)}`}
+              aria-pressed={holding === g.id}
+              onPointerDown={(e) => pickUp(e, g.id)}
+              style={{ filter: `hue-rotate(${g.hue}deg)` }}
+              className={`touch-none select-none rounded-xl p-1 text-3xl transition active:scale-95 ${holding === g.id ? "bg-amber-200 ring-2 ring-amber-400" : "hover:bg-slate-100"}`}
+            >
+              🎁
+            </button>
+          ))}
+        </div>
+      )}
+
       {ghost && (
         <span
           className="food-ghost"
-          style={{ left: ghost.x, top: ghost.y }}
+          style={{
+            left: ghost.x,
+            top: ghost.y,
+            filter: giftById(ghost.id)
+              ? `hue-rotate(${giftById(ghost.id).hue}deg)`
+              : undefined,
+          }}
           aria-hidden="true"
         >
-          {foodById(ghost.id)?.emoji}
+          {itemEmoji(ghost.id)}
         </span>
       )}
 
@@ -515,6 +652,29 @@ export default function Home({ onNavigate }) {
             {trayOpen
               ? "Close basket"
               : `Feed the Buddies (${basket.foods.length})`}
+          </button>
+        )}
+        {xmas && (
+          <button
+            type="button"
+            onClick={() => startCarol()}
+            disabled={caroling}
+            className="btn btn-secondary btn-sm"
+          >
+            {caroling ? "🎶 Singing…" : "🎄 Sing Christmas carols"}
+          </button>
+        )}
+        {xmas && giftsLeft.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleGiftTray}
+            disabled={caroling}
+            className="btn btn-secondary btn-sm"
+          >
+            🎁{" "}
+            {giftTrayOpen
+              ? "Close presents"
+              : `Give presents (${giftsLeft.length})`}
           </button>
         )}
         {stickersEnabled && (

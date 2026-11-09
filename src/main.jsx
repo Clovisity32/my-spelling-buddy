@@ -9,10 +9,12 @@ import * as recorder from "./audio/recorder.js";
 import * as buddyHug from "./audio/buddy-hug.js";
 import * as buddyVoice from "./audio/buddy-voice.js";
 import * as munch from "./audio/munch.js";
+import * as carol from "./audio/carol.js";
 import * as playback from "./audio/playback.js";
 import * as tts from "./audio/tts.js";
 import * as strokes from "./canvas/strokes.js";
 import { playClickSound } from "./audio/sounds.js";
+import { giftsForToday, isChristmasSeason } from "./buddy/christmas.js";
 import { readListPhoto } from "./import/readPhoto.js";
 import { normalizeWords } from "./import/normalize.js";
 
@@ -24,11 +26,13 @@ if (typeof window !== "undefined") {
     ...buddyHug,
     ...buddyVoice,
     ...munch,
+    ...carol,
     ...recorder,
     ...playback,
     ...tts,
   };
   window.__canvas = strokes;
+  window.__xmas = { isChristmasSeason, giftsForToday };
   // Tests replace readListPhoto so no photo ever leaves the browser.
   window.__import = { readListPhoto, normalizeWords };
   window.addEventListener("pointerup", () => audioContext.primeAudio(), {

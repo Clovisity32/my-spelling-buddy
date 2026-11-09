@@ -1,0 +1,221 @@
+/* Christmas: snow, the lit tree, twinkling bulbs, presents and the carol. */
+
+/* ---- snow ---- */
+.xmas-snow {
+  position: absolute;
+  inset: 0;
+  z-index: 36;
+  overflow: hidden;
+  pointer-events: none;
+}
+.xmas-flake {
+  position: absolute;
+  top: -4%;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.9;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+  animation: xmas-fall var(--d) linear infinite;
+}
+@keyframes xmas-fall {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(var(--x), 52vh, 0);
+  }
+  100% {
+    transform: translate3d(calc(var(--x) * -0.4), 108vh, 0);
+  }
+}
+/* Still scene (tests) and reduced motion: the flakes hang in the air. */
+.scene-still .xmas-flake {
+  animation: none;
+  top: calc(var(--y) * 1%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmas-flake {
+    animation: none;
+    top: calc(var(--y) * 1%);
+  }
+}
+
+/* ---- the tree ---- */
+.xmas-tree {
+  position: absolute;
+  left: calc(var(--lawn-l) + 0.5rem);
+  bottom: calc(var(--ground) - 1.2rem);
+  width: clamp(8rem, 24vw, 16rem);
+  z-index: 3;
+  pointer-events: none;
+}
+/* Phone and small tablet width: the lawn is full (Buddy, the cottage, the buttons), so the tree
+   stands big in the middle, up on the hill, behind Buddy — its sides and top
+   show around Buddy instead of the whole tree being hidden. */
+@media (max-width: 900px) {
+  .xmas-tree {
+    left: calc(50% - 5rem);
+    bottom: calc(var(--ground) + 0.4rem);
+    width: 10rem;
+  }
+}
+.xmas-bulb {
+  filter: drop-shadow(0 0 3px var(--c));
+  animation: xmas-twinkle 1.6s ease-in-out infinite;
+}
+@keyframes xmas-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px var(--c));
+  }
+  50% {
+    opacity: 0.45;
+    filter: drop-shadow(0 0 1px var(--c));
+  }
+}
+.xmas-star {
+  filter: drop-shadow(0 0 5px #ffe066) drop-shadow(0 0 10px #ffc933);
+  animation: xmas-star-pulse 1.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.xmas-rays {
+  animation: xmas-rays 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes xmas-star-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}
+@keyframes xmas-rays {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: rotate(0deg) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.15);
+  }
+}
+.scene-still .xmas-bulb,
+.scene-still .xmas-star,
+.scene-still .xmas-rays {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmas-bulb,
+  .xmas-star,
+  .xmas-rays {
+    animation: none;
+  }
+}
+
+/* ---- singing ---- */
+.xmas-note {
+  top: 0;
+  left: 10%;
+  animation-delay: 0s;
+  animation-duration: 1.8s;
+  color: #e5484d;
+}
+.xmas-note--b {
+  left: auto;
+  right: 6%;
+  color: #2f9e5b;
+  animation-delay: 0.6s;
+}
+.xmas-note--c {
+  left: 42%;
+  color: #4dabff;
+  animation-delay: 1.2s;
+}
+
+/* ---- unwrapping a present ---- */
+.xmas-burst {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  z-index: 45;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  line-height: 1;
+}
+.xmas-burst > span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 2.2rem;
+}
+.xmas-burst-box {
+  animation: xmas-shake 1s ease-in-out both;
+}
+.xmas-burst-prize {
+  opacity: 0;
+  font-size: 2.6rem !important;
+  animation: xmas-prize 1.6s ease-out 0.9s both;
+}
+.xmas-burst-spark {
+  opacity: 0;
+  font-size: 3rem !important;
+  animation: xmas-prize 1.2s ease-out 0.9s both;
+}
+@keyframes xmas-shake {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(0) scale(1);
+  }
+  20% {
+    transform: translate(-50%, -50%) rotate(-14deg) scale(1.15);
+  }
+  40% {
+    transform: translate(-50%, -50%) rotate(14deg) scale(1.2);
+  }
+  60% {
+    transform: translate(-50%, -50%) rotate(-10deg) scale(1.25);
+  }
+  85% {
+    transform: translate(-50%, -50%) rotate(0) scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes xmas-prize {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.3);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -90%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -190%) scale(1);
+  }
+}
+/* The present each Buddy keeps, by its feet. */
+.xmas-held {
+  position: absolute;
+  right: -6px;
+  bottom: 6px;
+  z-index: 31;
+  font-size: 1.7rem;
+  line-height: 1;
+  pointer-events: none;
+}
+.xmas-banner {
+  pointer-events: none;
+}

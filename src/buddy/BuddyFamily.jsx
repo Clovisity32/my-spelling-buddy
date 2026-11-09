@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Buddy from "./Buddy.jsx";
 import "./scene.css";
+import { isChristmas, outfitFor } from "./christmas.js";
 
 // Overlapping like her drawing: tall ones at the back, small ones in front.
 // Each member has its own colour, voice pitch and xylophone note.
@@ -45,6 +46,7 @@ export default function BuddyFamily({
   friendAccessories = {}, // { colour: accessory } for everyone but the lead
   className = "",
   party = "dance",
+  festive = isChristmas(), // everyone in Santa hats and scarves at Christmas
 }) {
   // The queue forms a moment after the family appears, so you see them hop
   // into line rather than just being there.
@@ -90,6 +92,16 @@ export default function BuddyFamily({
               </span>
             )}
             <Buddy
+              festive={
+                festive &&
+                outfitFor(
+                  i === LEAD
+                    ? leadColor
+                    : m.color === leadColor
+                      ? "peach"
+                      : m.color,
+                )
+              }
               mood={mood}
               color={
                 i === LEAD
@@ -99,7 +111,9 @@ export default function BuddyFamily({
                     : m.color
               }
               accessory={
-                i === LEAD ? leadAccessory : friendAccessories[m.color] || "none"
+                i === LEAD
+                  ? leadAccessory
+                  : friendAccessories[m.color] || "none"
               }
               size={m.size * 0.62}
               walking={party === "run"}

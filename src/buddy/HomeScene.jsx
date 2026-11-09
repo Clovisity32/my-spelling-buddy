@@ -3,6 +3,35 @@ import Buddy, { BUDDY_COLORS } from "./Buddy.jsx";
 import "./scene.css";
 import { celestialPosition, phaseOf, sceneIsStill } from "./timeOfDay.js";
 import { gardenFor } from "./garden.js";
+import { giftById, outfitFor } from "./christmas.js";
+import {
+  CarolNotes,
+  ChristmasTree,
+  GiftBurst,
+  RoofLights,
+  Snow,
+  SnowCap,
+} from "./ChristmasBits.jsx";
+
+// The lawn under the snow at Christmas.
+const SNOWY = { hill: "#f3f8fc", hill2: "#e0ebf4" };
+
+// A present kept (by its feet) and the one being unwrapped right now.
+function GiftBits({ id, gifted, burst }) {
+  const kept = giftById(gifted[id]);
+  return (
+    <>
+      {kept && !(burst && burst.id === id) && (
+        <span className="xmas-held" data-gift-held={id} aria-hidden="true">
+          {kept.prize}
+        </span>
+      )}
+      {burst && burst.id === id && (
+        <GiftBurst prize={burst.prize} hue={burst.hue} />
+      )}
+    </>
+  );
+}
 
 // Sky colours, ground and window light for each part of the day.
 const SKY = {
@@ -91,13 +120,13 @@ const FRIENDS = [
 
 // While a snack is held, every Buddy that hasn't eaten yet gets a glowing
 // target over it: drop the snack here (or tap here) to feed it.
-function FeedTarget({ id, label, onFeed }) {
+function FeedTarget({ id, label, onFeed, verb = "Feed" }) {
   return (
     <button
       type="button"
       className="feed-target"
       data-feed-id={id}
-      aria-label={`Feed ${label}`}
+      aria-label={`${verb} ${label}`}
       onClick={() => onFeed?.(id)}
     />
   );
@@ -112,7 +141,7 @@ function Cloud({ top, size, delay }) {
   );
 }
 
-function House({ phase, doorOpen, presence, knocking, onKnock }) {
+function House({ phase, doorOpen, presence, knocking, onKnock, xmas }) {
   const { window: win } = SKY[phase];
   return (
     <div
@@ -147,6 +176,12 @@ function House({ phase, doorOpen, presence, knocking, onKnock }) {
           strokeWidth="5"
           strokeLinejoin="round"
         />
+        {xmas && (
+          <>
+            <SnowCap apex={[100, 8]} left={[52.4, 44]} right={[147.6, 44]} />
+            <RoofLights apex={[100, 8]} left={[10, 76]} right={[190, 76]} />
+          </>
+        )}
         <circle
           cx="100"
           cy="52"
@@ -220,24 +255,27 @@ function Garden({ total, night }) {
     );
   return (
     <>
-    <div className="scene-garden" aria-hidden="true">
-      {item("rainbow", "rainbow", "🌈")}
-      {item("flowers", "flowers", "🌷🌻🌷")}
-      {item("tree", "tree", "🌳")}
-      {item("mailbox", "mailbox", "📮")}
-      {item("slide", "slide", "🛝")}
-      {item("pond", "pond", <span className="garden-duck">🦆</span>)}
-      {item("fountain", "fountain", "⛲")}
-    </div>
-    {/* In front of the houses, or the roofs would hide them. */}
-    {night && have.has("lights") && (
-      <div className="scene-garden scene-garden--front" aria-hidden="true">
-        <span data-garden-item="lights" className="garden-lights garden-lights--1">
-          ✨✨✨✨✨
-        </span>
-        <span className="garden-lights garden-lights--2">✨✨✨✨</span>
+      <div className="scene-garden" aria-hidden="true">
+        {item("rainbow", "rainbow", "🌈")}
+        {item("flowers", "flowers", "🌷🌻🌷")}
+        {item("tree", "tree", "🌳")}
+        {item("mailbox", "mailbox", "📮")}
+        {item("slide", "slide", "🛝")}
+        {item("pond", "pond", <span className="garden-duck">🦆</span>)}
+        {item("fountain", "fountain", "⛲")}
       </div>
-    )}
+      {/* In front of the houses, or the roofs would hide them. */}
+      {night && have.has("lights") && (
+        <div className="scene-garden scene-garden--front" aria-hidden="true">
+          <span
+            data-garden-item="lights"
+            className="garden-lights garden-lights--1"
+          >
+            ✨✨✨✨✨
+          </span>
+          <span className="garden-lights garden-lights--2">✨✨✨✨</span>
+        </div>
+      )}
     </>
   );
 }
@@ -262,7 +300,7 @@ function useNarrow() {
 // The cottage where the four small friends live: a blue roof with a pennant in
 // each friend's colour, round windows, and a door that swings open whenever
 // one of them walks in or out.
-function FriendsHouse({ phase, doorOpen, onKnock }) {
+function FriendsHouse({ phase, doorOpen, onKnock, xmas }) {
   const { window: win } = SKY[phase];
   return (
     <div className="scene-house2" data-door={doorOpen ? "open" : "closed"}>
@@ -284,6 +322,12 @@ function FriendsHouse({ phase, doorOpen, onKnock }) {
           strokeWidth="5"
           strokeLinejoin="round"
         />
+        {xmas && (
+          <>
+            <SnowCap apex={[100, 10]} left={[50.9, 42]} right={[149.1, 42]} />
+            <RoofLights apex={[100, 10]} left={[8, 70]} right={[192, 70]} />
+          </>
+        )}
         {FRIENDS.map((f, i) => (
           <path
             key={f.color}
@@ -366,8 +410,18 @@ export default function HomeScene({
   onFriendPose,
   onFriendDropped,
   onKnockFriends,
+  // Christmas: snow, the tree, Santa outfits. `caroling`: everyone is singing.
+  // `holdingGift`: a present is picked up. `gifted`: { buddyId: giftId } given
+  // today. `giftBurst`: { id, prize, hue } being unwrapped right now.
+  xmas = false,
+  caroling = false,
+  holdingGift = false,
+  gifted = {},
+  giftBurst = null,
 }) {
   const phase = phaseOf(hour);
+  // While a present is held, only Buddies without one get a target.
+  const showTarget = (id) => holding && !(holdingGift && gifted[id]);
   const narrow = useNarrow();
   const lawnA = useRef(null);
   const lawnB = useRef(null);
@@ -405,7 +459,7 @@ export default function HomeScene({
     const id = setTimeout(() => setSaid(null), 2200);
     return () => clearTimeout(id);
   }, [said]);
-  const pal = SKY[phase];
+  const pal = xmas ? { ...SKY[phase], ...SNOWY } : SKY[phase];
   const { body, x, y } = celestialPosition(hour);
   const night = phase === "night";
 
@@ -419,6 +473,8 @@ export default function HomeScene({
       data-time-of-day={phase}
       data-buddy-action={action}
       data-buddy-presence={presence}
+      data-christmas={xmas ? "on" : undefined}
+      data-caroling={caroling ? "on" : undefined}
     >
       <div
         aria-hidden="true"
@@ -473,8 +529,10 @@ export default function HomeScene({
       </div>
 
       <Garden total={total} night={night} />
+      {xmas && <ChristmasTree />}
 
       <House
+        xmas={xmas}
         phase={phase}
         doorOpen={doorOpen}
         presence={presence}
@@ -483,6 +541,7 @@ export default function HomeScene({
       />
 
       <FriendsHouse
+        xmas={xmas}
         phase={phase}
         doorOpen={friendsDoorOpen}
         onKnock={onKnockFriends}
@@ -507,7 +566,10 @@ export default function HomeScene({
                 {f.line}
               </span>
             )}
+            {caroling && st.presence === "out" && <CarolNotes />}
+            <GiftBits id={f.color} gifted={gifted} burst={giftBurst} />
             <Buddy
+              festive={xmas && outfitFor(f.color)}
               walking={st.walking}
               facing={st.facing}
               movable={st.presence === "out"}
@@ -522,7 +584,10 @@ export default function HomeScene({
               mood={
                 eatingId === f.color
                   ? "chew"
-                  : happyId === f.color || partyAll
+                  : happyId === f.color ||
+                      partyAll ||
+                      caroling ||
+                      giftBurst?.id === f.color
                     ? "cheer"
                     : hungry && !fed.includes(f.color)
                       ? "hungry"
@@ -536,7 +601,7 @@ export default function HomeScene({
               shared={sharedEat}
               color={f.color}
               accessory={friendAccessories[f.color] || "none"}
-              size={narrow ? f.size * 0.75 : f.size}
+              size={(narrow ? f.size * 0.75 : f.size) * (xmas ? 1.3 : 1)}
               pitch={f.pitch}
               label={`${f.color} friend`}
               onTap={() => {
@@ -555,11 +620,12 @@ export default function HomeScene({
                 );
               }}
             />
-            {holding && (
+            {showTarget(f.color) && (
               <FeedTarget
                 id={f.color}
                 label={`${f.color} friend`}
                 onFeed={onFeed}
+                verb={holdingGift ? "Give a present to" : "Feed"}
               />
             )}
           </div>
@@ -585,9 +651,16 @@ export default function HomeScene({
       <div className={`scene-lead scene-lead--${presence}`}>
         <div key={cycle} className={`scene-act scene-act--${action}`}>
           {children}
-          {holding && presence === "out" && (
-            <FeedTarget id="lead" label="Buddy" onFeed={onFeed} />
+          {showTarget("lead") && presence === "out" && (
+            <FeedTarget
+              id="lead"
+              label="Buddy"
+              onFeed={onFeed}
+              verb={holdingGift ? "Give a present to" : "Feed"}
+            />
           )}
+          {caroling && presence === "out" && <CarolNotes />}
+          <GiftBits id="lead" gifted={gifted} burst={giftBurst} />
           {action === "sing" && (
             <>
               <span className="scene-note scene-note--a" aria-hidden="true">
@@ -600,6 +673,8 @@ export default function HomeScene({
           )}
         </div>
       </div>
+
+      {xmas && <Snow heavy={caroling} />}
 
       {bubble && (
         <p
